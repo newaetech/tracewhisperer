@@ -1,10 +1,10 @@
 -- Copyright 1986-2020 Xilinx, Inc. All Rights Reserved.
 -- --------------------------------------------------------------------------------
 -- Tool Version: Vivado v.2020.2 (lin64) Build 3064766 Wed Nov 18 09:12:47 MST 2020
--- Date        : Fri Nov 26 11:32:14 2021
+-- Date        : Fri Nov 26 11:32:13 2021
 -- Host        : red running 64-bit Ubuntu 18.04.6 LTS
--- Command     : write_vhdl -force -mode synth_stub
---               /home/jpnewae/git/DesignStartTrace/hardware/tracewhisperer/vivado/tracewhisperer.srcs/sources_1/ip/fifo_generator_0/fifo_generator_0_stub.vhdl
+-- Command     : write_vhdl -force -mode synth_stub -rename_top fifo_generator_0 -prefix
+--               fifo_generator_0_ fifo_generator_0_stub.vhdl
 -- Design      : fifo_generator_0
 -- Purpose     : Stub declaration of top-level module interface
 -- Device      : xc7s15ftgb196-2
