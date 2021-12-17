@@ -24,7 +24,6 @@
 `include "defines_trace.v"
 
 module reg_trace #(
-   parameter pADDR_WIDTH = 21,
    parameter pBYTECNT_SIZE = 7,
    parameter pBUFFER_SIZE = 64, // in bits
    parameter pMATCH_RULES = 8
@@ -33,7 +32,6 @@ module reg_trace #(
 
 // Interface to cw305_usb_reg_fe:
    input  wire                                  usb_clk,
-   //input  wire [pADDR_WIDTH-pBYTECNT_SIZE-1:0]  reg_address,     // Address of register
    input  wire [7:0]                            reg_address,  // Address of register
    input  wire [pBYTECNT_SIZE-1:0]              reg_bytecnt,  // Current byte count
    output reg  [7:0]                            read_data,       //

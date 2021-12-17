@@ -30,7 +30,6 @@ either expressed or implied, of NewAE Technology Inc.
 
 module trace_top #(
   parameter pBYTECNT_SIZE = 7,
-  parameter pADDR_WIDTH = 21,
   parameter pBUFFER_SIZE = 64,
   parameter pMATCH_RULES = 8,
   parameter pTRIGGER_DELAY_WIDTH = 20,
@@ -42,86 +41,76 @@ module trace_top #(
   parameter pTIMESTAMP_SHORT_WIDTH = 8,
   parameter pUSERIO_WIDTH = 4
 )(
-  input  wire trace_clk_in,
-  output wire fe_clk,
-  input  wire usb_clk,
-  input  wire reset_pin,
-  output wire fpga_reset,
-  output reg  flash_pattern,
+  input  wire                           trace_clk_in,
+  output wire                           fe_clk,
+  input  wire                           usb_clk,
+  input  wire                           reset_pin,
+  output wire                           fpga_reset,
+  output reg                            flash_pattern,
 
-  input wire  target_clk,
-  input wire  [22:0] I_fe_clock_count,
+  input wire                            target_clk,
+  input wire  [22:0]                    I_fe_clock_count,
 
-  input wire  trigger_clk,
-  input wire  trigger_clk_locked,
-  output wire trigger_clk_psen,
-  output wire trigger_clk_psincdec,
-  input  wire trigger_clk_psdone,
+  input wire                            trigger_clk,
+  input wire                            trigger_clk_locked,
+  output wire                           trigger_clk_psen,
+  output wire                           trigger_clk_psincdec,
+  input  wire                           trigger_clk_psdone,
 
   `ifdef __ICARUS__
   // for simulation only:
-  input wire [7:0] I_trace_sdr,
+  input wire [7:0]                      I_trace_sdr,
   `endif
 
   // trace:
-  input  wire [3:0] trace_data,
-  input  wire swo,
-  output wire O_trace_trig_out,
-  input  wire m3_trig,
-  output wire O_soft_trig_passthru,
+  input  wire [3:0]                     trace_data,
+  input  wire                           swo,
+  output wire                           O_trace_trig_out,
+  input  wire                           m3_trig,
+  output wire                           O_soft_trig_passthru,
 
   // USB:
-  inout  wire [7:0]    USB_Data,
-  input  wire [pADDR_WIDTH-1:0] USB_Addr,
-  input  wire          USB_nRD,
-  input  wire          USB_nWE,
-  input  wire          USB_nCS,
-  output wire          O_data_available,
-  input  wire          I_fast_fifo_rdn,
+  input  wire                           USB_nCS,
+  output wire                           O_data_available,
+  input  wire                           I_fast_fifo_rdn,
+  output wire                           usb_drive_data,
 
-  output wire         O_led_select,
-  output wire         O_reverse_tracedata,
-  output wire         O_error_flag,
+  input  wire [pBYTECNT_SIZE-1:0]       reg_bytecnt,
+  input  wire [7:0]                     write_data,
+  output wire [7:0]                     read_data,
+  input  wire                           reg_read,
+  input  wire                           reg_write,
+  input  wire                           reg_addrvalid,
+  input  wire [7:0]                     reg_address,
 
-  output wire [6:0]     trig_drp_addr,
-  output wire           trig_drp_den,
-  output wire [15:0]    trig_drp_din,
-  input  wire [15:0]    trig_drp_dout,
-  output wire           trig_drp_dwe,
-  output wire           trig_drp_reset,
+  output wire                           O_led_select,
+  output wire                           O_reverse_tracedata,
+  output wire                           O_error_flag,
+
+  output wire [6:0]                     trig_drp_addr,
+  output wire                           trig_drp_den,
+  output wire [15:0]                    trig_drp_din,
+  input  wire [15:0]                    trig_drp_dout,
+  output wire                           trig_drp_dwe,
+  output wire                           trig_drp_reset,
 
 
   // USERIO pins: (TraceWhisperer only, unused for CW305)
-  input  wire [pUSERIO_WIDTH-1:0]   userio_d,
-  output wire [pUSERIO_WIDTH-1:0]   O_userio_pwdriven,
-  output wire [pUSERIO_WIDTH-1:0]   O_userio_drive_data,
+  input  wire [pUSERIO_WIDTH-1:0]       userio_d,
+  output wire [pUSERIO_WIDTH-1:0]       O_userio_pwdriven,
+  output wire [pUSERIO_WIDTH-1:0]       O_userio_drive_data,
 
   // Status LEDs:
-  output wire arm,
-  output wire capturing,
+  output wire                           arm,
+  output wire                           capturing,
 
   // Debug:
-  output wire synchronized
+  output wire                           synchronized
 );
 
    parameter pALL_TRIGGER_DELAY_WIDTHS = 24*pNUM_TRIGGER_PULSES;
    parameter pALL_TRIGGER_WIDTH_WIDTHS = 24*pNUM_TRIGGER_PULSES;
    parameter pCAPTURE_DELAY_WIDTH = pTRIGGER_DELAY_WIDTH - 2;
-
-   wire isout;
-   wire [7:0] cmdfifo_din;
-   wire [7:0] cmdfifo_dout_pre;
-   //reg  [7:0] cmdfifo_dout_reg;
-   wire [7:0] cmdfifo_dout;
-   wire [pBYTECNT_SIZE-1:0]  reg_bytecnt;
-   wire [7:0]   write_data;
-   wire [7:0]   read_data;
-   wire [7:0]   read_data_trace;
-   wire [7:0]   read_data_trace_trigger_drp;
-   wire [7:0]   read_data_main;
-   wire         reg_read;
-   wire         reg_write;
-   wire         reg_addrvalid;
 
    wire [1:0]   fe_clk_sel;
    wire         trace_clock_sel;
@@ -159,65 +148,14 @@ module trace_top #(
 
    assign trace_data_sdr = trace_clock_sel? trace_data_iddr : {4'b0, trace_data};
 
-   assign USB_Data = isout ? cmdfifo_dout : 8'bZ;
-   assign cmdfifo_din = USB_Data;
    assign fpga_reset = reset;
-
-   //always @(posedge usb_clk)
-   //   cmdfifo_dout_reg <= cmdfifo_dout_pre;
-   //assign cmdfifo_dout = O_board_rev[3]? cmdfifo_dout_reg : cmdfifo_dout_pre;
-   assign cmdfifo_dout = cmdfifo_dout_pre;
 
 
    `ifdef CW305
-      wire [pADDR_WIDTH-pBYTECNT_SIZE-1:0]  reg_address;
-      cw305_usb_reg_fe #(
-         .pBYTECNT_SIZE    (pBYTECNT_SIZE)
-      ) U_usb_reg_main (
-         .rst              (reset),
-         .usb_clk          (usb_clk), 
-         .usb_din          (cmdfifo_din), 
-         .usb_dout         (cmdfifo_dout_pre), 
-         .usb_rdn          (USB_nRD), 
-         .usb_wrn          (USB_nWE),
-         .usb_cen          (USB_nCS),
-         .usb_addr         (USB_Addr),
-         .usb_isout        (isout), 
-         .I_drive_data     (usb_drive_data),
-         .reg_address      (reg_address), 
-         .reg_bytecnt      (reg_bytecnt), 
-         .reg_datao        (write_data), 
-         .reg_datai        (read_data),
-         .reg_read         (reg_read), 
-         .reg_write        (reg_write), 
-         .reg_addrvalid    (reg_addrvalid)
-      );
       assign fe_clk = target_clk;
       assign trace_clock_sel = 1'b0;
 
    `else // PhyWhisperer platform
-      wire [pADDR_WIDTH-1:0]  reg_address;
-      usb_reg_main #(
-         .pBYTECNT_SIZE    (pBYTECNT_SIZE)
-      ) U_usb_reg_main (
-         .cwusb_clk        (usb_clk), 
-         .cwusb_din        (cmdfifo_din), 
-         .cwusb_dout       (cmdfifo_dout_pre), 
-         .cwusb_rdn        (USB_nRD), 
-         .cwusb_wrn        (USB_nWE),
-         .cwusb_cen        (USB_nCS),
-         .cwusb_addr       (USB_Addr),
-         .cwusb_isout      (isout), 
-         .I_drive_data     (usb_drive_data),
-         .reg_address      (reg_address), 
-         .reg_bytecnt      (reg_bytecnt), 
-         .reg_datao        (write_data), 
-         .reg_datai        (read_data),
-         .reg_read         (reg_read), 
-         .reg_write        (reg_write), 
-         .reg_addrvalid    (reg_addrvalid)
-      );
-
       assign trace_clock_sel = fe_clk_sel == 2'b01;
 
       `ifndef __ICARUS__
@@ -293,7 +231,6 @@ module trace_top #(
    wire fifo_empty;
    wire [5:0] fifo_status;
    wire fifo_error_flag;
-   wire usb_drive_data;
    wire reg_arm;
    wire capture_while_trig;
    wire [15:0] max_timestamp;
@@ -351,11 +288,14 @@ module trace_top #(
    reg [31:0] fe_frequency_int;
    reg [31:0] fe_frequency;
 
+   wire [7:0]   read_data_trace;
+   wire [7:0]   read_data_trace_trigger_drp;
+   wire [7:0]   read_data_main;
+
    assign O_error_flag = swo_cdc_fifo_overflow || fifo_error_flag;
 
 
    reg_trace #(
-      .pADDR_WIDTH              (pADDR_WIDTH),
       .pBYTECNT_SIZE            (pBYTECNT_SIZE),
       .pBUFFER_SIZE             (pBUFFER_SIZE),
       .pMATCH_RULES             (pMATCH_RULES)
@@ -812,6 +752,7 @@ module trace_top #(
 
 
    `ifdef ILA_REG
+       // TODO- update
        ila_reg I_reg_ila (
           .clk          (usb_clk),              // input wire clk
           .probe0       (USB_Data),             // input wire [7:0]  probe0  

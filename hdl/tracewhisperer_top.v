@@ -191,6 +191,49 @@ module tracewhisperer_top #(
       );
    `endif
 
+   wire isout;
+   wire usb_drive_data;
+   wire [7:0] cmdfifo_din;
+   wire [7:0] cmdfifo_dout_pre;
+   //reg  [7:0] cmdfifo_dout_reg;
+   wire [7:0] cmdfifo_dout;
+   wire [pBYTECNT_SIZE-1:0]  reg_bytecnt;
+   wire [7:0]   write_data;
+   wire [7:0]   read_data;
+   wire         reg_read;
+   wire         reg_write;
+   wire         reg_addrvalid;
+
+
+   assign USB_Data = isout ? cmdfifo_dout : 8'bZ;
+   assign cmdfifo_din = USB_Data;
+   //always @(posedge usb_clk)
+   //   cmdfifo_dout_reg <= cmdfifo_dout_pre;
+   //assign cmdfifo_dout = O_board_rev[3]? cmdfifo_dout_reg : cmdfifo_dout_pre;
+   assign cmdfifo_dout = cmdfifo_dout_pre;
+
+
+   wire [pADDR_WIDTH-1:0]  reg_address;
+   usb_reg_main #(
+      .pBYTECNT_SIZE    (pBYTECNT_SIZE)
+   ) U_usb_reg_main (
+      .cwusb_clk        (clk_usb_buf), 
+      .cwusb_din        (cmdfifo_din), 
+      .cwusb_dout       (cmdfifo_dout_pre), 
+      .cwusb_rdn        (USB_nRD), 
+      .cwusb_wrn        (USB_nWE),
+      .cwusb_cen        (USB_nCS),
+      .cwusb_addr       (USB_Addr),
+      .cwusb_isout      (isout), 
+      .I_drive_data     (usb_drive_data),
+      .reg_address      (reg_address), 
+      .reg_bytecnt      (reg_bytecnt), 
+      .reg_datao        (write_data), 
+      .reg_datai        (read_data),
+      .reg_read         (reg_read), 
+      .reg_write        (reg_write), 
+      .reg_addrvalid    (reg_addrvalid)
+   );
 
 
    always @(posedge fe_clk) begin
@@ -199,7 +242,6 @@ module tracewhisperer_top #(
 
    trace_top #(
       .pBYTECNT_SIZE    (pBYTECNT_SIZE),
-      .pADDR_WIDTH      (pADDR_WIDTH),
       .pBUFFER_SIZE     (pBUFFER_SIZE),
       .pMATCH_RULES     (pMATCH_RULES),
       .pUSERIO_WIDTH    (pUSERIO_WIDTH)
@@ -238,13 +280,18 @@ module tracewhisperer_top #(
       .I_trace_sdr      (I_trace_sdr),
       `endif
                                   
-      .USB_Data         (USB_Data ),
-      .USB_Addr         (USB_Addr ),
-      .USB_nRD          (USB_nRD  ),
-      .USB_nWE          (USB_nWE  ),
       .USB_nCS          (USB_nCS  ),
       .O_data_available (USB_SPARE0 ),
       .I_fast_fifo_rdn  (USB_SPARE1 ),
+
+      .usb_drive_data   (usb_drive_data),
+      .reg_address      (reg_address[7:0]), 
+      .reg_bytecnt      (reg_bytecnt), 
+      .write_data       (write_data), 
+      .read_data        (read_data),
+      .reg_read         (reg_read), 
+      .reg_write        (reg_write), 
+      .reg_addrvalid    (reg_addrvalid),
 
       .O_reverse_tracedata (reverse_tracedata),
       .O_led_select     (led_select),
