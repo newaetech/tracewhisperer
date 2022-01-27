@@ -246,7 +246,6 @@ module trace_top #(
    wire capture_while_trig;
    wire [15:0] max_timestamp;
 
-   wire [`FE_SELECT_WIDTH-1:0] fe_select;
    wire reg_main_selected;
    wire reg_trace_selected;
 
@@ -433,7 +432,7 @@ module trace_top #(
       .reg_write        (reg_write), 
       .reg_addrvalid    (reg_addrvalid),
 
-      .fe_select        (fe_select),
+      .fe_select        (),     // TODO: is this still needed?
 
       .userio_d         (userio_d),
       .O_userio_pwdriven (O_userio_pwdriven),
