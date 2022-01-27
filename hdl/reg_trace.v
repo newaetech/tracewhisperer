@@ -99,7 +99,6 @@ module reg_trace #(
    output reg  [1:0]                            O_uart_stop_bits,
    output reg  [3:0]                            O_uart_data_bits,
 
-   output reg                                   O_reverse_tracedata,
    output wire                                  O_reset_sync,
     
    input wire  [22:0]                           I_fe_clock_count,
@@ -174,7 +173,6 @@ module reg_trace #(
             `REG_UART_STOP_BITS:        reg_read_data = O_uart_stop_bits;
             `REG_UART_DATA_BITS:        reg_read_data = O_uart_data_bits;
 
-            `REG_REVERSE_TRACEDATA:     reg_read_data = O_reverse_tracedata;
             `REG_TRACE_EN:              reg_read_data = O_trace_en;
             `REG_FE_CLOCK_SEL:          reg_read_data = O_fe_clk_sel;
             `REG_FE_CLOCK_COUNT:        reg_read_data = fe_clock_count_extended[reg_bytecnt[1:0]*8 +: 8];
@@ -240,7 +238,6 @@ module reg_trace #(
          O_uart_stop_bits <= 1;
          O_uart_data_bits <= 8;
          O_record_syncs <= 0;
-         O_reverse_tracedata <= 0; // TODO: cleanup later if truly not needed
          O_fe_clk_sel <= 0;
          reset_sync <= 0;
          reset_sync_r <= 0;
@@ -282,7 +279,6 @@ module reg_trace #(
                `REG_SWO_BITRATE_DIV:    O_swo_bitrate_div <= write_data;
                `REG_UART_STOP_BITS:     O_uart_stop_bits <= write_data[1:0];
                `REG_UART_DATA_BITS:     O_uart_data_bits <= write_data[3:0];
-               `REG_REVERSE_TRACEDATA:  O_reverse_tracedata <= write_data[0];
                `REG_FE_CLOCK_SEL:       O_fe_clk_sel <= write_data[1:0];
                `REG_TRACE_EN:           O_trace_en <= write_data[0];
                `REG_TRACE_USERIO_DIR:   O_trace_userio_dir <= write_data;

@@ -91,7 +91,6 @@ module trace_top #(
   input  wire [7:0]                     reg_address,
 
   output wire                           O_led_select,
-  output wire                           O_reverse_tracedata,
   output wire                           O_error_flag,
 
   output wire [6:0]                     trig_drp_addr,
@@ -375,7 +374,6 @@ module trace_top #(
       .O_uart_stop_bits         (uart_stop_bits  ),
       .O_uart_data_bits         (uart_data_bits  ),
 
-      .O_reverse_tracedata      (O_reverse_tracedata),
       .O_reset_sync             (reset_sync_from_reg),
 
       .I_fe_clock_count         (I_fe_clock_count),

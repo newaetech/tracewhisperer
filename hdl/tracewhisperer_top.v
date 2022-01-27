@@ -84,7 +84,6 @@ module tracewhisperer_top #(
   wire fe_clk;
   wire fpga_reset;
   wire flash_pattern;
-  wire reverse_tracedata;
   wire led_select;
   wire error_flag;
   wire [3:0] trace_data;
@@ -301,7 +300,6 @@ module tracewhisperer_top #(
       .reg_write        (reg_write), 
       .reg_addrvalid    (reg_addrvalid),
 
-      .O_reverse_tracedata (reverse_tracedata),
       .O_led_select     (led_select),
       .O_error_flag     (error_flag),
 
