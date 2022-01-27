@@ -25,6 +25,8 @@ either expressed or implied, of NewAE Technology Inc.
 
 `timescale 1 ns / 1 ps
 `default_nettype none
+`include "defines_pw.v"
+`include "defines_trace.v"
 
 module tracewhisperer_top #(
   parameter pBYTECNT_SIZE = 7,
@@ -86,6 +88,7 @@ module tracewhisperer_top #(
   wire led_select;
   wire error_flag;
   wire [3:0] trace_data;
+  wire [31:0] buildtime;
 
   wire [pUSERIO_WIDTH-1:0] userio_pwdriven;
   wire [pUSERIO_WIDTH-1:0] userio_drive_data;
@@ -244,7 +247,9 @@ module tracewhisperer_top #(
       .pBYTECNT_SIZE    (pBYTECNT_SIZE),
       .pBUFFER_SIZE     (pBUFFER_SIZE),
       .pMATCH_RULES     (pMATCH_RULES),
-      .pUSERIO_WIDTH    (pUSERIO_WIDTH)
+      .pUSERIO_WIDTH    (pUSERIO_WIDTH),
+      .pMAIN_REG_SELECT (`MAIN_REG_SELECT),
+      .pTRACE_REG_SELECT(`TRACE_REG_SELECT)
    ) U_trace_top (
       .trace_clk_in     (TRACECLOCK),
       .fe_clk           (fe_clk),
@@ -252,7 +257,10 @@ module tracewhisperer_top #(
       .reset_pin        (1'b0),
       .fpga_reset       (fpga_reset),
       .flash_pattern    (flash_pattern),
-                                  
+      .buildtime        (buildtime),
+      .O_trace_en       (), // Husky only
+      .O_trace_userio_dir (), // Husky only
+
       .trace_data       (trace_data),
       .swo              (swo),
       .O_trace_trig_out (trig_out),
@@ -316,6 +324,16 @@ module tracewhisperer_top #(
       .I_userio_pwdriven        (userio_pwdriven),
       .I_userio_drive_data      (userio_drive_data)
    );
+
+   `ifndef __ICARUS__
+      USR_ACCESSE2 U_buildtime (
+         .CFGCLK(),
+         .DATA(buildtime),
+         .DATAVALID()
+      );
+   `else
+      assign buildtime = 0;
+   `endif
 
 
 endmodule

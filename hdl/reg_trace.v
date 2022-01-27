@@ -26,7 +26,9 @@
 module reg_trace #(
    parameter pBYTECNT_SIZE = 7,
    parameter pBUFFER_SIZE = 64, // in bits
-   parameter pMATCH_RULES = 8
+   parameter pMATCH_RULES = 8,
+   parameter pSELECT = `TRACE_REG_SELECT,
+   parameter pREGISTERED_READ = 1
 )(
    input  wire         reset_i,
 
@@ -34,7 +36,7 @@ module reg_trace #(
    input  wire                                  usb_clk,
    input  wire [7:0]                            reg_address,  // Address of register
    input  wire [pBYTECNT_SIZE-1:0]              reg_bytecnt,  // Current byte count
-   output reg  [7:0]                            read_data,       //
+   output wire [7:0]                            read_data,       //
    input  wire [7:0]                            write_data,      //
    input  wire                                  reg_read,        // Read flag. One clock cycle AFTER this flag is high
                                                                  // valid data must be present on the read_data bus
@@ -45,6 +47,8 @@ module reg_trace #(
 // Interface to top level:
    output reg  [4:0]                            O_clksettings,
    output reg  [1:0]                            O_fe_clk_sel,
+   output reg                                   O_trace_en,
+   output reg  [7:0]                            O_trace_userio_dir,
 
 // Interface to trace_trigger:
    input  wire                                  I_synchronized,
@@ -88,6 +92,7 @@ module reg_trace #(
    input  wire [7:0]                            I_trace_count7,
 
    input  wire [pBUFFER_SIZE-1:0]               I_matched_data,
+   input  wire [pBUFFER_SIZE-1:0]               I_revbuffer,
 
    output reg                                   O_swo_enable,
    output reg  [7:0]                            O_swo_bitrate_div,
@@ -110,8 +115,9 @@ module reg_trace #(
    wire [63:0] trace_count;
    reg  reset_sync;
    reg  reset_sync_r;
+   reg  [7:0] read_data_r;
 
-   assign selected = reg_addrvalid & reg_address[7:6] == `TRACE_REG_SELECT;
+   assign selected = reg_addrvalid & reg_address[7:6] == pSELECT;
    wire [5:0] address = reg_address[5:0];
    wire [31:0] fe_clock_count_extended = {9'b0, I_fe_clock_count};
 
@@ -161,6 +167,7 @@ module reg_trace #(
 
             `REG_RECORD_SYNCS:          reg_read_data = O_record_syncs;
             `REG_MATCHED_DATA:          reg_read_data = I_matched_data[reg_bytecnt[2:0]*8 +: 8];
+            `REG_BUFFER:                reg_read_data = I_revbuffer[reg_bytecnt[2:0]*8 +: 8];
 
             `REG_SWO_ENABLE:            reg_read_data = O_swo_enable;
             `REG_SWO_BITRATE_DIV:       reg_read_data = O_swo_bitrate_div;
@@ -168,8 +175,11 @@ module reg_trace #(
             `REG_UART_DATA_BITS:        reg_read_data = O_uart_data_bits;
 
             `REG_REVERSE_TRACEDATA:     reg_read_data = O_reverse_tracedata;
+            `REG_TRACE_EN:              reg_read_data = O_trace_en;
             `REG_FE_CLOCK_SEL:          reg_read_data = O_fe_clk_sel;
             `REG_FE_CLOCK_COUNT:        reg_read_data = fe_clock_count_extended[reg_bytecnt[1:0]*8 +: 8];
+
+            `REG_TRACE_USERIO_DIR:      reg_read_data = O_trace_userio_dir;
 
             default:                    reg_read_data = 0;
 
@@ -183,7 +193,9 @@ module reg_trace #(
    // Register output read data to ease timing. If you need data one clock
    // cycle earlier, simply remove this stage.
    always @(posedge usb_clk)
-      read_data <= reg_read_data;
+      read_data_r <= reg_read_data;
+
+   assign read_data = pREGISTERED_READ? read_data_r : reg_read_data;
 
    assign trace_count = {I_trace_count0,
                          I_trace_count1,
@@ -232,6 +244,8 @@ module reg_trace #(
          O_fe_clk_sel <= 0;
          reset_sync <= 0;
          reset_sync_r <= 0;
+         O_trace_en <= 0;
+         O_trace_userio_dir <= 8'b00000011; // 7-4:trace data inputs; 3:nRESET; 2:TDO/SWO; 1-0:outputs for JTAG to SWD switching
       end
 
       else begin
@@ -270,6 +284,8 @@ module reg_trace #(
                `REG_UART_DATA_BITS:     O_uart_data_bits <= write_data[3:0];
                `REG_REVERSE_TRACEDATA:  O_reverse_tracedata <= write_data[0];
                `REG_FE_CLOCK_SEL:       O_fe_clk_sel <= write_data[1:0];
+               `REG_TRACE_EN:           O_trace_en <= write_data[0];
+               `REG_TRACE_USERIO_DIR:   O_trace_userio_dir <= write_data;
 
             endcase
          end
