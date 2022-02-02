@@ -110,9 +110,24 @@ module trace_top #(
   output wire                           arm,
   output wire                           capturing,
 
+  // FIFO interface:
+  input  wire                           fifo_full,
+  input  wire                           fifo_overflow_blocked,
+  output wire [17:0]                    fifo_in_data,
+  output wire                           fifo_wr,
+  output wire                           fifo_read,
+  output wire                           fifo_flush,
+  output wire                           reg_arm,
+  output reg                            reg_arm_feclk,
+  output wire                           clear_errors,
+  input  wire [17:0]                    fifo_out_data,
+  input  wire [5:0]                     fifo_status,
+  input  wire                           fifo_empty,
+  input  wire                           fifo_error_flag,
+  output wire                           synchronized,
+
   // Debug:
-  output wire [7:0]                     trace_data_sdr,
-  output wire                           synchronized
+  output wire [7:0]                     trace_data_sdr
 );
 
    parameter pALL_TRIGGER_DELAY_WIDTHS = 24*pNUM_TRIGGER_PULSES;
@@ -231,17 +246,6 @@ module trace_top #(
    wire [pBUFFER_SIZE-1:0] matched_data;
 
 
-   wire [17:0] fifo_in_data;
-   wire [17:0] fifo_out_data;
-   wire fifo_wr;
-   wire fifo_read;
-   wire fifo_flush;
-   wire fifo_overflow_blocked;
-   wire fifo_full;
-   wire fifo_empty;
-   wire [5:0] fifo_status;
-   wire fifo_error_flag;
-   wire reg_arm;
    wire capture_while_trig;
    wire [15:0] max_timestamp;
 
@@ -282,9 +286,7 @@ module trace_top #(
    wire arm_pulse;
    wire reset_sync_from_reg;
    wire timestamps_disable;
-   wire clear_errors;
 
-   reg  reg_arm_feclk;
    (* ASYNC_REG = "TRUE" *) reg  [1:0] reg_arm_pipe;
 
    reg [25:0] timer_heartbeat;
@@ -484,32 +486,6 @@ module trace_top #(
    assign read_data = reg_main_selected? read_data_main :
                       reg_trace_selected?  read_data_trace | read_data_trace_trigger_drp : 8'h00;
 
-
-   `ifndef NOFIFO // for clean compilation
-   fifo U_fifo (
-      .reset_i                  (reset),
-      .cwusb_clk                (usb_clk),
-      .fe_clk                   (fe_clk),
-
-      .O_fifo_full              (fifo_full),
-      .O_fifo_overflow_blocked  (fifo_overflow_blocked),
-      .I_data                   (fifo_in_data),
-      .I_wr                     (fifo_wr),
-
-      .I_fifo_read              (fifo_read),
-      .I_fifo_flush             (fifo_flush),
-      .I_clear_read_flags       (reg_arm),
-      .I_clear_write_flags      (reg_arm_feclk),
-      .I_clear_errors           (clear_errors),
-
-      .O_data                   (fifo_out_data),
-      .O_fifo_status            (fifo_status),
-      .O_fifo_empty             (fifo_empty),
-      .O_error_flag             (fifo_error_flag),
-
-      .I_custom_fifo_stat_flag  (synchronized)      
-   );
-   `endif
 
    // CDC on reg_arm for fifo:
    always @(posedge fe_clk) begin

@@ -105,6 +105,21 @@ module tracewhisperer_top #(
   wire [15:0]    trig_drp_dout;
   wire           trig_drp_dwe;
   wire           trig_drp_reset;
+  
+  wire           fifo_full;
+  wire           fifo_overflow_blocked;
+  wire [17:0]    fifo_in_data;
+  wire           fifo_wr;
+  wire           fifo_read;
+  wire           fifo_flush;
+  wire           reg_arm;
+  wire           reg_arm_feclk;
+  wire           clear_errors;
+  wire [17:0]    fifo_out_data;
+  wire [5:0]     fifo_status;
+  wire           fifo_empty;
+  wire           fifo_error_flag;
+
 
   reg [22:0] count_fe_clock = 0;
   reg [22:0] count_trace_clock = 0;
@@ -310,7 +325,24 @@ module tracewhisperer_top #(
       .arm              (arm),
       .capturing        (capturing),
 
-      .synchronized     (synchronized)
+      .fifo_full        (fifo_full),
+      .fifo_overflow_blocked (fifo_overflow_blocked),
+      .fifo_in_data     (fifo_in_data),
+      .fifo_wr          (fifo_wr),
+                               
+      .fifo_read        (fifo_read),
+      .fifo_flush       (fifo_flush),
+      .reg_arm          (reg_arm),
+      .reg_arm_feclk    (reg_arm_feclk),
+      .clear_errors     (clear_errors),
+                               
+      .fifo_out_data    (fifo_out_data),
+      .fifo_status      (fifo_status),
+      .fifo_empty       (fifo_empty),
+      .fifo_error_flag  (fifo_error_flag),
+
+      .synchronized     (synchronized)      
+
    );
 
    userio #(
@@ -322,6 +354,33 @@ module tracewhisperer_top #(
       .I_userio_pwdriven        (userio_pwdriven),
       .I_userio_drive_data      (userio_drive_data)
    );
+
+   `ifndef NOFIFO // for clean compilation
+   fifo U_fifo (
+      .reset_i                  (fpga_reset),
+      .cwusb_clk                (clk_usb_buf),
+      .fe_clk                   (fe_clk),
+
+      .O_fifo_full              (fifo_full),
+      .O_fifo_overflow_blocked  (fifo_overflow_blocked),
+      .I_data                   (fifo_in_data),
+      .I_wr                     (fifo_wr),
+
+      .I_fifo_read              (fifo_read),
+      .I_fifo_flush             (fifo_flush),
+      .I_clear_read_flags       (reg_arm),
+      .I_clear_write_flags      (reg_arm_feclk),
+      .I_clear_errors           (clear_errors),
+
+      .O_data                   (fifo_out_data),
+      .O_fifo_status            (fifo_status),
+      .O_fifo_empty             (fifo_empty),
+      .O_error_flag             (fifo_error_flag),
+
+      .I_custom_fifo_stat_flag  (synchronized)      
+   );
+   `endif
+
 
    `ifndef __ICARUS__
       USR_ACCESSE2 U_buildtime (
