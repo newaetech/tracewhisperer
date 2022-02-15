@@ -2,10 +2,10 @@
 [*] GTKWave Analyzer v3.3.86 (w)1999-2017 BSI
 [*] Thu Nov 25 19:05:24 2021
 [*]
-[dumpfile] "/home/jpnewae/git/DesignStartTrace/hardware/tracewhisperer/sim/run_patterntrigger_raw0/tb.fst"
+[dumpfile] "/home/jpnewae/git/tracewhisperer/sim/run_fewrules0/tb.fst"
 [dumpfile_mtime] "Thu Nov 25 19:02:27 2021"
 [dumpfile_size] 1649683
-[savefile] "/home/jpnewae/git/DesignStartTrace/hardware/tracewhisperer/sim/tb.gtkw"
+[savefile] "/home/jpnewae/git/tracewhisperer/sim/tb.gtkw"
 [timestart] 0
 [size] 3840 2132
 [pos] -1 -1
@@ -166,21 +166,21 @@ tb.U_dut.U_trace_top.U_reg_trace.O_soft_trig_passthru
 @c00200
 -FIFO
 @28
-tb.U_dut.U_trace_top.U_fifo.fe_clk
-tb.U_dut.U_trace_top.U_fifo.I_fifo_read
-tb.U_dut.U_trace_top.U_fifo.I_wr
+tb.U_dut.U_fifo.fe_clk
+tb.U_dut.U_fifo.I_fifo_read
+tb.U_dut.U_fifo.I_wr
 @22
-tb.U_dut.U_trace_top.U_fifo.I_data[17:0]
+tb.U_dut.U_fifo.I_data[17:0]
 @28
-tb.U_dut.U_trace_top.U_fifo.I_fifo_flush
-tb.U_dut.U_trace_top.U_fifo.fifo_empty
+tb.U_dut.U_fifo.I_fifo_flush
+tb.U_dut.U_fifo.fifo_empty
 @22
-tb.U_dut.U_trace_top.U_fifo.O_data[17:0]
+tb.U_dut.U_fifo.O_data[17:0]
 @28
-tb.U_dut.U_trace_top.U_fifo.I_fifo_read
-tb.U_dut.U_trace_top.I_fast_fifo_rdn
-tb.U_dut.U_trace_top.O_data_available
-tb.U_dut.U_trace_top.U_fifo.O_fifo_empty
+tb.U_dut.U_fifo.I_fifo_read
+tb.U_dut.I_fast_fifo_rdn
+tb.U_dut.O_data_available
+tb.U_dut.U_fifo.O_fifo_empty
 @1401200
 -FIFO
 @c00200

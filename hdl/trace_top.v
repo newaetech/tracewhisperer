@@ -39,7 +39,11 @@ module trace_top #(
   parameter pCAPTURE_LEN_WIDTH = 32,
   parameter pTIMESTAMP_FULL_WIDTH = 16,
   parameter pTIMESTAMP_SHORT_WIDTH = 8,
-  parameter pUSERIO_WIDTH = 4
+  parameter pUSERIO_WIDTH = 4,
+  parameter pMAIN_REG_SELECT  = `MAIN_REG_SELECT,
+  parameter pTRACE_REG_SELECT = `TRACE_REG_SELECT,
+  parameter pREGISTERED_READ = 1
+
 )(
   input  wire                           trace_clk_in,
   output wire                           fe_clk,
@@ -47,6 +51,9 @@ module trace_top #(
   input  wire                           reset_pin,
   output wire                           fpga_reset,
   output reg                            flash_pattern,
+  input  wire [31:0]                    buildtime,
+  output wire                           O_trace_en,
+  output wire [7:0]                     O_trace_userio_dir,
 
   input wire                            target_clk,
   input wire  [22:0]                    I_fe_clock_count,
@@ -84,7 +91,6 @@ module trace_top #(
   input  wire [7:0]                     reg_address,
 
   output wire                           O_led_select,
-  output wire                           O_reverse_tracedata,
   output wire                           O_error_flag,
 
   output wire [6:0]                     trig_drp_addr,
@@ -95,7 +101,7 @@ module trace_top #(
   output wire                           trig_drp_reset,
 
 
-  // USERIO pins: (TraceWhisperer only, unused for CW305)
+  // USERIO pins: (TraceWhisperer/Husky only, unused for CW305)
   input  wire [pUSERIO_WIDTH-1:0]       userio_d,
   output wire [pUSERIO_WIDTH-1:0]       O_userio_pwdriven,
   output wire [pUSERIO_WIDTH-1:0]       O_userio_drive_data,
@@ -104,8 +110,24 @@ module trace_top #(
   output wire                           arm,
   output wire                           capturing,
 
+  // FIFO interface:
+  input  wire                           fifo_full,
+  input  wire                           fifo_overflow_blocked,
+  output wire [17:0]                    fifo_in_data,
+  output wire                           fifo_wr,
+  output wire                           fifo_read,
+  output wire                           fifo_flush,
+  output wire                           reg_arm,
+  output reg                            reg_arm_feclk,
+  output wire                           clear_errors,
+  input  wire [17:0]                    fifo_out_data,
+  input  wire [5:0]                     fifo_status,
+  input  wire                           fifo_empty,
+  input  wire                           fifo_error_flag,
+  output wire                           synchronized,
+
   // Debug:
-  output wire                           synchronized
+  output wire [7:0]                     trace_data_sdr
 );
 
    parameter pALL_TRIGGER_DELAY_WIDTHS = 24*pNUM_TRIGGER_PULSES;
@@ -118,7 +140,6 @@ module trace_top #(
    wire reset;
 
    wire [7:0] trace_data_iddr;
-   wire [7:0] trace_data_sdr;
 
    `ifdef __ICARUS__
       assign trace_data_iddr = I_trace_sdr;
@@ -130,12 +151,16 @@ module trace_top #(
          for (i = 0; i < 4; i = i + 1) begin: gen_adc_data
             IDDR #(
                .DDR_CLK_EDGE     ("OPPOSITE_EDGE"),
+               //.DDR_CLK_EDGE     ("SAME_EDGE"),
+               //.DDR_CLK_EDGE     ("SAME_EDGE_PIPELINED"),
                .INIT_Q1          (0),
                .INIT_Q2          (0),
                .SRTYPE           ("SYNC")
             ) U_trace_data_iddr (
                .Q1               (trace_data_iddr[i]),
                .Q2               (trace_data_iddr[i+4]),
+               //.Q1               (trace_data_iddr[i+4]),
+               //.Q2               (trace_data_iddr[i]),
                .D                (trace_data[i]),
                .CE               (1'b1),
                .C                (trace_clk_in),
@@ -221,21 +246,9 @@ module trace_top #(
    wire [pBUFFER_SIZE-1:0] matched_data;
 
 
-   wire [17:0] fifo_in_data;
-   wire [17:0] fifo_out_data;
-   wire fifo_wr;
-   wire fifo_read;
-   wire fifo_flush;
-   wire fifo_overflow_blocked;
-   wire fifo_full;
-   wire fifo_empty;
-   wire [5:0] fifo_status;
-   wire fifo_error_flag;
-   wire reg_arm;
    wire capture_while_trig;
    wire [15:0] max_timestamp;
 
-   wire [`FE_SELECT_WIDTH-1:0] fe_select;
    wire reg_main_selected;
    wire reg_trace_selected;
 
@@ -273,9 +286,7 @@ module trace_top #(
    wire arm_pulse;
    wire reset_sync_from_reg;
    wire timestamps_disable;
-   wire clear_errors;
 
-   reg  reg_arm_feclk;
    (* ASYNC_REG = "TRUE" *) reg  [1:0] reg_arm_pipe;
 
    reg [25:0] timer_heartbeat;
@@ -291,6 +302,7 @@ module trace_top #(
    wire [7:0]   read_data_trace;
    wire [7:0]   read_data_trace_trigger_drp;
    wire [7:0]   read_data_main;
+   wire [pBUFFER_SIZE-1:0] revbuffer;
 
    assign O_error_flag = swo_cdc_fifo_overflow || fifo_error_flag;
 
@@ -298,7 +310,9 @@ module trace_top #(
    reg_trace #(
       .pBYTECNT_SIZE            (pBYTECNT_SIZE),
       .pBUFFER_SIZE             (pBUFFER_SIZE),
-      .pMATCH_RULES             (pMATCH_RULES)
+      .pMATCH_RULES             (pMATCH_RULES),
+      .pSELECT                  (pTRACE_REG_SELECT),
+      .pREGISTERED_READ         (pREGISTERED_READ)
    ) U_reg_trace (
       .reset_i                  (reset), 
       .usb_clk                  (usb_clk), 
@@ -312,6 +326,8 @@ module trace_top #(
 
       .O_clksettings            (clksettings),
       .O_fe_clk_sel             (fe_clk_sel),
+      .O_trace_en               (O_trace_en),
+      .O_trace_userio_dir       (O_trace_userio_dir),
 
       .I_synchronized           (synchronized    ),
       .I_swo_cdc_overflow       (swo_cdc_fifo_overflow),
@@ -353,13 +369,13 @@ module trace_top #(
       .I_trace_count6           (trace_count6    ),
       .I_trace_count7           (trace_count7    ),
       .I_matched_data           (matched_data    ),
+      .I_revbuffer              (revbuffer       ),
 
       .O_swo_enable             (swo_enable      ),
       .O_swo_bitrate_div        (swo_bitrate_div ),
       .O_uart_stop_bits         (uart_stop_bits  ),
       .O_uart_data_bits         (uart_data_bits  ),
 
-      .O_reverse_tracedata      (O_reverse_tracedata),
       .O_reset_sync             (reset_sync_from_reg),
 
       .I_fe_clock_count         (I_fe_clock_count),
@@ -401,7 +417,9 @@ module trace_top #(
       .pNUM_TRIGGER_WIDTH       (pNUM_TRIGGER_WIDTH),
       .pCAPTURE_LEN_WIDTH       (pCAPTURE_LEN_WIDTH),
       .pQUICK_START_DEFAULT     (1),
-      .pUSERIO_WIDTH            (pUSERIO_WIDTH)
+      .pUSERIO_WIDTH            (pUSERIO_WIDTH),
+      .pSELECT                  (pMAIN_REG_SELECT),
+      .pREGISTERED_READ         (pREGISTERED_READ)
    ) U_reg_main (
       .reset_pin        (reset_pin),
       .fpga_reset       (reset),
@@ -414,7 +432,7 @@ module trace_top #(
       .reg_write        (reg_write), 
       .reg_addrvalid    (reg_addrvalid),
 
-      .fe_select        (fe_select),
+      .fe_select        (),     // TODO: is this still needed?
 
       .userio_d         (userio_d),
       .O_userio_pwdriven (O_userio_pwdriven),
@@ -461,38 +479,13 @@ module trace_top #(
       .O_psen           (trigger_clk_psen),
       .I_psdone         (trigger_clk_psdone),
 
-      .selected         (reg_main_selected)
+      .selected         (reg_main_selected),
+      .buildtime        (buildtime)
    );
 
    assign read_data = reg_main_selected? read_data_main :
                       reg_trace_selected?  read_data_trace | read_data_trace_trigger_drp : 8'h00;
 
-
-   `ifndef NOFIFO // for clean compilation
-   fifo U_fifo (
-      .reset_i                  (reset),
-      .cwusb_clk                (usb_clk),
-      .fe_clk                   (fe_clk),
-
-      .O_fifo_full              (fifo_full),
-      .O_fifo_overflow_blocked  (fifo_overflow_blocked),
-      .I_data                   (fifo_in_data),
-      .I_wr                     (fifo_wr),
-
-      .I_fifo_read              (fifo_read),
-      .I_fifo_flush             (fifo_flush),
-      .I_clear_read_flags       (reg_arm),
-      .I_clear_write_flags      (reg_arm_feclk),
-      .I_clear_errors           (clear_errors),
-
-      .O_data                   (fifo_out_data),
-      .O_fifo_status            (fifo_status),
-      .O_fifo_empty             (fifo_empty),
-      .O_error_flag             (fifo_error_flag),
-
-      .I_custom_fifo_stat_flag  (synchronized)      
-   );
-   `endif
 
    // CDC on reg_arm for fifo:
    always @(posedge fe_clk) begin
@@ -588,6 +581,7 @@ module trace_top #(
       .I_arm                    (reg_arm_feclk),
       .I_swo_enable             (swo_enable),
       .I_capture_now            (capture_now),
+      .revbuffer                (revbuffer),
 
       .I_pattern0               (trace_pattern0),
       .I_pattern1               (trace_pattern1),

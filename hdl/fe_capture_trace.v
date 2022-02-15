@@ -66,6 +66,7 @@ module fe_capture_trace #(
     input  wire I_arm,
     input  wire I_swo_enable,
     input  wire I_capture_now,
+    output wire [pBUFFER_SIZE-1:0] revbuffer,
 
     input  wire [pBUFFER_SIZE-1:0] I_pattern0, 
     input  wire [pBUFFER_SIZE-1:0] I_pattern1,
@@ -108,7 +109,6 @@ module fe_capture_trace #(
 );
 
    reg [pBUFFER_SIZE-1:0] buffer;
-   wire [pBUFFER_SIZE-1:0] revbuffer;
    reg  synchronized;
    reg  [2:0] valid_count;
    reg  [2:0] trace_width_r;
@@ -492,6 +492,17 @@ module fe_capture_trace #(
           .probe11      (swo_data_ready_traceclk), // input wire [0:0]  probe11
           .probe12      (swo_data_reg),         // input wire [7:0]  probe12
           .probe13      (capturing_r)           // input wire [0:0]  probe13
+
+       );
+   `endif
+
+   `ifdef ILA_TRACE_SMALL
+       ila_trace_small I_trace_ila_small (
+          .clk          (fe_clk),               // input wire clk
+          .probe0       (recording),            // input wire [0:0]  probe0  
+          .probe1       (trace_data),           // input wire [7:0]  probe1 
+          .probe2       (synchronized),         // input wire [0:0]  probe2 
+          .probe3       (capturing_r)           // input wire [0:0]  probe3
 
        );
    `endif
