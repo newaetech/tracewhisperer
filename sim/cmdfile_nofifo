@@ -5,6 +5,7 @@
 ../hdl/fe_capture_trace.v
 ../hdl/cdc_bus.v
 ../hdl/uart_core.v
+../hdl/simple_trigger.v
 ../phywhisperer-common/hardware/hdl/fe_capture_main.v
 ../phywhisperer-common/hardware/hdl/usb_reg_main.v
 ../phywhisperer-common/hardware/hdl/reg_main.v

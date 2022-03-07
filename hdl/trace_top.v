@@ -663,29 +663,44 @@ module trace_top #(
    `endif
 
 
-   pw_trigger #(
-      .pCAPTURE_DELAY_WIDTH     (pCAPTURE_DELAY_WIDTH),
-      .pTRIGGER_DELAY_WIDTH     (pTRIGGER_DELAY_WIDTH),
-      .pTRIGGER_WIDTH_WIDTH     (pTRIGGER_WIDTH_WIDTH),
-      .pALL_TRIGGER_DELAY_WIDTHS(pALL_TRIGGER_DELAY_WIDTHS),
-      .pALL_TRIGGER_WIDTH_WIDTHS(pALL_TRIGGER_WIDTH_WIDTHS),
-      .pNUM_TRIGGER_PULSES      (pNUM_TRIGGER_PULSES),
-      .pNUM_TRIGGER_WIDTH       (pNUM_TRIGGER_WIDTH)
-   ) U_trigger (
-      .reset_i          (reset),
-      .trigger_clk      (trigger_clk),
-      .fe_clk           (fe_clk),
-      .O_trigger        (O_trace_trig_out),
-      .I_capture_delay  (18'b0),    // TODO- not needed?
-      .I_trigger_delay  (trigger_delay),
-      .I_trigger_width  (trigger_width),
-      .I_trigger_enable (trigger_enable),
-      .I_num_triggers   (num_triggers),
-      .O_capture_enable_pulse (capture_enable_pulse),
-      .I_match          (trigger_match),
-      .I_capturing      (capturing),
-      .O_capture_enable (capture_enable)
-   );
+   `ifdef PW_TRIGGER
+       pw_trigger #(
+          .pCAPTURE_DELAY_WIDTH     (pCAPTURE_DELAY_WIDTH),
+          .pTRIGGER_DELAY_WIDTH     (pTRIGGER_DELAY_WIDTH),
+          .pTRIGGER_WIDTH_WIDTH     (pTRIGGER_WIDTH_WIDTH),
+          .pALL_TRIGGER_DELAY_WIDTHS(pALL_TRIGGER_DELAY_WIDTHS),
+          .pALL_TRIGGER_WIDTH_WIDTHS(pALL_TRIGGER_WIDTH_WIDTHS),
+          .pNUM_TRIGGER_PULSES      (pNUM_TRIGGER_PULSES),
+          .pNUM_TRIGGER_WIDTH       (pNUM_TRIGGER_WIDTH)
+       ) U_trigger (
+          .reset_i          (reset),
+          .trigger_clk      (trigger_clk),
+          .fe_clk           (fe_clk),
+          .O_trigger        (O_trace_trig_out),
+          .I_capture_delay  (18'b0),
+          .I_trigger_delay  (trigger_delay),
+          .I_trigger_width  (trigger_width),
+          .I_trigger_enable (trigger_enable),
+          .I_num_triggers   (num_triggers),
+          .O_capture_enable_pulse (capture_enable_pulse),
+          .I_match          (trigger_match),
+          .I_capturing      (capturing),
+          .O_capture_enable (capture_enable)
+       );
+
+   `else
+       simple_trigger U_simple_trigger (
+          .reset_i          (reset),
+          .fe_clk           (fe_clk),
+          .O_trigger        (O_trace_trig_out),
+          .O_capture_enable_pulse (capture_enable_pulse),
+          .I_trigger_enable (trigger_enable),
+          .I_match          (trigger_match),
+          .I_capturing      (capturing),
+          .O_capture_enable (capture_enable)
+       );
+   `endif
+
 
    // measure fe_clk and trigger_clk frequency: divide clock by 2^23 for frequency measurement
    always @(posedge usb_clk) begin
