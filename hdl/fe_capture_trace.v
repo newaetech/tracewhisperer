@@ -188,7 +188,7 @@ module fe_capture_trace #(
       .reset_i       (reset),
       .clear_error   (I_clear_errors),
       .src_clk       (swo_clk),
-      .src_pulse     (I_swo_data_ready && capturing_r),
+      .src_pulse     (I_swo_data_ready && (I_arm || I_capturing)),
       .src_data      (I_swo_data),
       .src_overflow  (O_swo_cdc_overflow),
       .dst_clk       (fe_clk),
@@ -498,11 +498,18 @@ module fe_capture_trace #(
 
    `ifdef ILA_TRACE_SMALL
        ila_trace_small I_trace_ila_small (
-          .clk          (fe_clk),               // input wire clk
+          //.clk          (fe_clk),               // input wire clk
+          .clk          (usb_clk),              // input wire clk
           .probe0       (recording),            // input wire [0:0]  probe0  
           .probe1       (trace_data),           // input wire [7:0]  probe1 
           .probe2       (synchronized),         // input wire [0:0]  probe2 
-          .probe3       (capturing_r)           // input wire [0:0]  probe3
+          .probe3       (capturing_r),          // input wire [0:0]  probe3
+          .probe4       (O_trigger_match),      // input wire [0:0]  probe4 
+          .probe5       (match_bits),           // input wire [7:0]  probe5 
+          .probe6       (I_pattern_trig_enable),// input wire [7:0]  probe6 
+          .probe7       (pattern[0]),           // input wire [63:0]  probe7 
+          .probe8       (revbuffer),            // input wire [63:0]  probe8 
+          .probe9       (valid_buffer)          // input wire [0:0]  probe9 
 
        );
    `endif
