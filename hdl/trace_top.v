@@ -284,6 +284,8 @@ module trace_top #(
    wire [3:0] uart_data_bits;
    wire [1:0] uart_stop_bits;
    wire arm_pulse;
+   wire reg_no_arm;
+   wire reg_capture_off;
    wire reset_sync_from_reg;
    wire timestamps_disable;
 
@@ -452,6 +454,8 @@ module trace_top #(
       .O_arm            (arm),
       .O_reg_arm        (reg_arm),
       .O_arm_pulse      (arm_pulse),
+      .O_no_arm         (reg_no_arm),
+      .O_capture_off    (reg_capture_off),
       .I_flushing       (fifo_flush),
       .O_capture_len    (capture_len),
       .O_count_writes   (count_writes),
@@ -514,6 +518,7 @@ module trace_top #(
       .I_reg_arm                (reg_arm),
       .I_capture_len            (capture_len),
       .I_count_writes           (count_writes),
+      .I_capture_off            (reg_capture_off),
       .I_counter_quick_start    (counter_quick_start),
       .I_max_timestamp          (max_timestamp),
 
@@ -579,6 +584,7 @@ module trace_top #(
       .I_pattern_trig_enable    (pattern_trig_enable),
       .I_soft_trig_enable       (soft_trig_enable),
       .I_arm                    (reg_arm_feclk),
+      .I_no_arm                 (reg_no_arm),
       .I_swo_enable             (swo_enable),
       .I_capture_now            (capture_now),
       .revbuffer                (revbuffer),
@@ -695,6 +701,7 @@ module trace_top #(
           .O_trigger        (O_trace_trig_out),
           .O_capture_enable_pulse (capture_enable_pulse),
           .I_trigger_enable (trigger_enable),
+          .I_capture_off    (reg_capture_off),
           .I_match          (trigger_match),
           .I_capturing      (capturing),
           .O_capture_enable (capture_enable)

@@ -64,6 +64,7 @@ module fe_capture_trace #(
     input  wire [pMATCH_RULES-1:0] I_pattern_trig_enable,
     input  wire I_soft_trig_enable,
     input  wire I_arm,
+    input  wire I_no_arm,
     input  wire I_swo_enable,
     input  wire I_capture_now,
     output wire [pBUFFER_SIZE-1:0] revbuffer,
@@ -156,7 +157,7 @@ module fe_capture_trace #(
 
    wire capture_now_pulse;
 
-   assign O_trigger_match = capture_now_pulse || (I_arm && 
+   assign O_trigger_match = capture_now_pulse || ( (I_arm || I_no_arm) && 
                          ( (m3_trig & !m3_trig_r & I_soft_trig_enable) ||
                            (|(match_bits & I_pattern_trig_enable)  & !(|(match_bits_r & I_pattern_trig_enable)) )) );
 
