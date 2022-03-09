@@ -64,7 +64,6 @@ module fe_capture_trace #(
     input  wire [pMATCH_RULES-1:0] I_pattern_trig_enable,
     input  wire I_soft_trig_enable,
     input  wire I_arm,
-    input  wire I_no_arm,
     input  wire I_swo_enable,
     input  wire I_capture_now,
     output wire [pBUFFER_SIZE-1:0] revbuffer,
@@ -101,6 +100,7 @@ module fe_capture_trace #(
 
     /* TRIGGER CONNECTIONS */
     output wire O_trigger_match,
+    input  wire I_triggering,
     input  wire m3_trig
 
     /* PATTERN MATCHER CONNECTIONS
@@ -157,7 +157,7 @@ module fe_capture_trace #(
 
    wire capture_now_pulse;
 
-   assign O_trigger_match = capture_now_pulse || ( (I_arm || I_no_arm) && 
+   assign O_trigger_match = capture_now_pulse || ( (I_arm || I_triggering) && 
                          ( (m3_trig & !m3_trig_r & I_soft_trig_enable) ||
                            (|(match_bits & I_pattern_trig_enable)  & !(|(match_bits_r & I_pattern_trig_enable)) )) );
 
@@ -189,7 +189,7 @@ module fe_capture_trace #(
       .reset_i       (reset),
       .clear_error   (I_clear_errors),
       .src_clk       (swo_clk),
-      .src_pulse     (I_swo_data_ready && (I_arm || I_capturing)),
+      .src_pulse     (I_swo_data_ready && (I_arm || I_capturing || I_triggering)),
       .src_data      (I_swo_data),
       .src_overflow  (O_swo_cdc_overflow),
       .dst_clk       (fe_clk),

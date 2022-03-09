@@ -53,6 +53,7 @@ module trace_top #(
   output reg                            flash_pattern,
   input  wire [31:0]                    buildtime,
   output wire                           O_trace_en,
+  output wire                           O_trace_capture_on,
   output wire [7:0]                     O_trace_userio_dir,
 
   input wire                            target_clk,
@@ -255,9 +256,11 @@ module trace_top #(
    wire trigger_enable;
    wire soft_trig_enable;
    wire [pNUM_TRIGGER_WIDTH-1:0] num_triggers;
+   wire [pNUM_TRIGGER_WIDTH-1:0] triggers_generated;
    wire [pALL_TRIGGER_DELAY_WIDTHS-1:0] trigger_delay;
    wire [pALL_TRIGGER_WIDTH_WIDTHS-1:0] trigger_width;
    wire trigger_match;
+   wire triggering;
 
    wire [pCAPTURE_LEN_WIDTH-1:0] capture_len;
    wire count_writes;
@@ -284,7 +287,6 @@ module trace_top #(
    wire [3:0] uart_data_bits;
    wire [1:0] uart_stop_bits;
    wire arm_pulse;
-   wire reg_no_arm;
    wire reg_capture_off;
    wire reset_sync_from_reg;
    wire timestamps_disable;
@@ -308,6 +310,7 @@ module trace_top #(
 
    assign O_error_flag = swo_cdc_fifo_overflow || fifo_error_flag;
 
+   assign O_trace_capture_on = ~reg_capture_off & O_trace_en;
 
    reg_trace #(
       .pBYTECNT_SIZE            (pBYTECNT_SIZE),
@@ -454,7 +457,6 @@ module trace_top #(
       .O_arm            (arm),
       .O_reg_arm        (reg_arm),
       .O_arm_pulse      (arm_pulse),
-      .O_no_arm         (reg_no_arm),
       .O_capture_off    (reg_capture_off),
       .I_flushing       (fifo_flush),
       .O_capture_len    (capture_len),
@@ -477,6 +479,7 @@ module trace_top #(
       .O_trigger_width  (trigger_width),
       .O_trigger_enable (trigger_enable),
       .O_num_triggers   (num_triggers),
+      .I_triggers_generated (triggers_generated),
 
       // Trigger clock phase shift:
       .O_psincdec       (trigger_clk_psincdec),
@@ -584,7 +587,6 @@ module trace_top #(
       .I_pattern_trig_enable    (pattern_trig_enable),
       .I_soft_trig_enable       (soft_trig_enable),
       .I_arm                    (reg_arm_feclk),
-      .I_no_arm                 (reg_no_arm),
       .I_swo_enable             (swo_enable),
       .I_capture_now            (capture_now),
       .revbuffer                (revbuffer),
@@ -621,6 +623,7 @@ module trace_top #(
 
    /* TRIGGER  CONNECTIONS */
       .O_trigger_match          (trigger_match),
+      .I_triggering             (triggering),
       .m3_trig                  (m3_trig)
 
    /* PATTERN MATCHER CONNECTIONS
@@ -695,14 +698,21 @@ module trace_top #(
        );
 
    `else
-       simple_trigger U_simple_trigger (
+       simple_trigger #(
+          .pNUM_TRIGGER_WIDTH (pNUM_TRIGGER_WIDTH)
+       ) U_simple_trigger (
           .reset_i          (reset),
           .fe_clk           (fe_clk),
+          .usb_clk          (usb_clk),
+          .I_arm            (reg_arm_feclk),
           .O_trigger        (O_trace_trig_out),
           .O_capture_enable_pulse (capture_enable_pulse),
           .I_trigger_enable (trigger_enable),
           .I_capture_off    (reg_capture_off),
+          .I_num_triggers   (num_triggers),
+          .O_triggers_generated (triggers_generated),
           .I_match          (trigger_match),
+          .O_triggering     (triggering),
           .I_capturing      (capturing),
           .O_capture_enable (capture_enable)
        );
