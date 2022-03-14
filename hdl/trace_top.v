@@ -277,7 +277,7 @@ module trace_top #(
 
    wire capture_enable;
 
-   wire [7:0] swo_bitrate_div;
+   wire [15:0] swo_bitrate_div;
    wire swo_enable;
    wire swo_data_ready;
    wire [7:0] swo_data_byte;
@@ -639,7 +639,7 @@ module trace_top #(
          .clk                      (trigger_clk),
          .reset_n                  (~reset),
          // Configuration inputs
-         .bit_rate                 ({8'b0, swo_bitrate_div}),
+         .bit_rate                 (swo_bitrate_div),
          .data_bits                (uart_data_bits),
          .stop_bits                (uart_stop_bits),
          // External data interface
@@ -662,7 +662,7 @@ module trace_top #(
        ila_uart I_ila_uart (
           .clk          (trigger_clk),          // input wire clk
           .probe0       (swo),                  // input wire [0:0]  probe0  
-          .probe1       (swo_bitrate_div),      // input wire [7:0]  probe1 
+          .probe1       (swo_bitrate_div[7:0]), // input wire [7:0]  probe1 
           .probe2       (swo_data_ready),       // input wire [0:0]  probe2 
           .probe3       (swo_ack),              // input wire [0:0]  probe3 
           .probe4       (uart_rx_state),        // input wire [2:0]  probe4 

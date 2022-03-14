@@ -95,7 +95,7 @@ module reg_trace #(
    input  wire [pBUFFER_SIZE-1:0]               I_revbuffer,
 
    output reg                                   O_swo_enable,
-   output reg  [7:0]                            O_swo_bitrate_div,
+   output reg  [15:0]                           O_swo_bitrate_div,
    output reg  [1:0]                            O_uart_stop_bits,
    output reg  [3:0]                            O_uart_data_bits,
 
@@ -169,7 +169,7 @@ module reg_trace #(
             `REG_BUFFER:                reg_read_data = I_revbuffer[reg_bytecnt[2:0]*8 +: 8];
 
             `REG_SWO_ENABLE:            reg_read_data = O_swo_enable;
-            `REG_SWO_BITRATE_DIV:       reg_read_data = O_swo_bitrate_div;
+            `REG_SWO_BITRATE_DIV:       reg_read_data = O_swo_bitrate_div[reg_bytecnt[0]*8 +: 8];
             `REG_UART_STOP_BITS:        reg_read_data = O_uart_stop_bits;
             `REG_UART_DATA_BITS:        reg_read_data = O_uart_data_bits;
 
@@ -276,7 +276,7 @@ module reg_trace #(
                `REG_TRACE_MASK6:        O_trace_mask6[reg_bytecnt[2:0]*8 +: 8] <= write_data;
                `REG_TRACE_MASK7:        O_trace_mask7[reg_bytecnt[2:0]*8 +: 8] <= write_data;
                `REG_SWO_ENABLE:         O_swo_enable <= write_data[0];
-               `REG_SWO_BITRATE_DIV:    O_swo_bitrate_div <= write_data;
+               `REG_SWO_BITRATE_DIV:    O_swo_bitrate_div[reg_bytecnt[0]*8 +: 8] <= write_data;
                `REG_UART_STOP_BITS:     O_uart_stop_bits <= write_data[1:0];
                `REG_UART_DATA_BITS:     O_uart_data_bits <= write_data[3:0];
                `REG_FE_CLOCK_SEL:       O_fe_clk_sel <= write_data[1:0];
