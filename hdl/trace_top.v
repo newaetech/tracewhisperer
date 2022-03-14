@@ -418,6 +418,7 @@ module trace_top #(
 
    reg_main #(
       .pBYTECNT_SIZE            (pBYTECNT_SIZE),
+      .pBUFFER_SIZE             (pBUFFER_SIZE),
       .pNUM_TRIGGER_PULSES      (pNUM_TRIGGER_PULSES),
       .pNUM_TRIGGER_WIDTH       (pNUM_TRIGGER_WIDTH),
       .pCAPTURE_LEN_WIDTH       (pCAPTURE_LEN_WIDTH),
