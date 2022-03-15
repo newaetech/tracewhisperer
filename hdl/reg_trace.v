@@ -103,6 +103,9 @@ module reg_trace #(
     
    input wire  [22:0]                           I_fe_clock_count,
 
+   output reg                                   uart_reset,
+   input  wire [2:0]                            uart_state,
+
    output wire                                  selected
 
 );
@@ -178,6 +181,7 @@ module reg_trace #(
             `REG_FE_CLOCK_COUNT:        reg_read_data = fe_clock_count_extended[reg_bytecnt[1:0]*8 +: 8];
 
             `REG_TRACE_USERIO_DIR:      reg_read_data = O_trace_userio_dir;
+            `REG_UART:                  reg_read_data = uart_state;
 
             default:                    reg_read_data = 0;
 
@@ -241,6 +245,7 @@ module reg_trace #(
          O_fe_clk_sel <= 0;
          reset_sync <= 0;
          reset_sync_r <= 0;
+         uart_reset <= 0;
          O_trace_en <= 0;
          O_trace_userio_dir <= 8'b00000011; // 7-4:trace data inputs; 3:nRESET; 2:TDO/SWO; 1-0:outputs for JTAG to SWD switching
       end
@@ -292,6 +297,12 @@ module reg_trace #(
          else 
             reset_sync <= 1'b0;
          reset_sync_r <= reset_sync;
+
+         // REG_UART register is special:
+         if (selected && reg_write && (address == `REG_UART))
+            uart_reset <= 1'b1;
+         else 
+            uart_reset <= 1'b0;
 
       end
    end

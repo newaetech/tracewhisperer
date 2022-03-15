@@ -510,8 +510,15 @@ module fe_capture_trace #(
           .probe6       (I_pattern_trig_enable),// input wire [7:0]  probe6 
           .probe7       (pattern[0]),           // input wire [63:0]  probe7 
           .probe8       (revbuffer),            // input wire [63:0]  probe8 
-          .probe9       (valid_buffer)          // input wire [0:0]  probe9 
-
+          .probe9       (valid_buffer),         // input wire [0:0]  probe9 
+          .probe10      (I_clear_errors),       // input wire [0:0]  probe10
+          .probe11      (I_swo_data_ready),     // input wire [0:0]  probe11
+          .probe12      (I_arm),                // input wire [0:0]  probe12
+          .probe13      (I_capturing),          // input wire [0:0]  probe13
+          .probe14      (I_triggering),         // input wire [0:0]  probe14
+          .probe15      (I_swo_data),           // input wire [7:0]  probe15
+          .probe16      (swo_data_ready_traceclk), // input wire [0:0]  probe16
+          .probe17      (swo_data_reg)          // input wire [7:0]  probe17
        );
    `endif
 

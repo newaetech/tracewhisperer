@@ -283,6 +283,7 @@ module trace_top #(
    wire [7:0] swo_data_byte;
    wire swo_cdc_fifo_overflow;
    reg swo_ack;
+   wire uart_reset;
    wire [2:0] uart_rx_state;
    wire [3:0] uart_data_bits;
    wire [1:0] uart_stop_bits;
@@ -382,6 +383,9 @@ module trace_top #(
       .O_uart_data_bits         (uart_data_bits  ),
 
       .O_reset_sync             (reset_sync_from_reg),
+
+      .uart_reset               (uart_reset),
+      .uart_state               (uart_rx_state),
 
       .I_fe_clock_count         (I_fe_clock_count),
       .selected                 (reg_trace_selected)
@@ -638,7 +642,7 @@ module trace_top #(
       uart_core U_uart_rx (
          //.clk                      (trace_clk),
          .clk                      (trigger_clk),
-         .reset_n                  (~reset),
+         .reset_n                  (~(reset || uart_reset)),
          // Configuration inputs
          .bit_rate                 (swo_bitrate_div),
          .data_bits                (uart_data_bits),
@@ -661,7 +665,8 @@ module trace_top #(
 
    `ifdef ILA_UART
        ila_uart I_ila_uart (
-          .clk          (trigger_clk),          // input wire clk
+          //.clk          (trigger_clk),          // input wire clk
+          .clk          (usb_clk),          // input wire clk
           .probe0       (swo),                  // input wire [0:0]  probe0  
           .probe1       (swo_bitrate_div[7:0]), // input wire [7:0]  probe1 
           .probe2       (swo_data_ready),       // input wire [0:0]  probe2 
