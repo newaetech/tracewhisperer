@@ -56,14 +56,14 @@ module fe_capture_trace #(
     /* REGISTER CONNECTIONS */
     output wire O_fifo_fe_status,
     input  wire [2:0] I_trace_width, // supported values: 1/2/4
-    input  wire I_reset_sync_arm,
     input  wire I_reset_sync_reg,
     input  wire I_capture_raw,
     input  wire I_record_syncs,
     input  wire [pMATCH_RULES-1:0] I_pattern_enable,
     input  wire [pMATCH_RULES-1:0] I_pattern_trig_enable,
     input  wire I_soft_trig_enable,
-    input  wire I_arm,
+    input  wire I_arm_fe,
+    input  wire I_arm_usb,
     input  wire I_swo_enable,
     input  wire I_capture_now,
     output wire [pBUFFER_SIZE-1:0] revbuffer,
@@ -157,22 +157,26 @@ module fe_capture_trace #(
 
    wire capture_now_pulse;
 
-   assign O_trigger_match = capture_now_pulse || ( (I_arm || I_triggering) && 
+   assign O_trigger_match = capture_now_pulse || ( (I_arm_fe || I_triggering) && 
                          ( (m3_trig & !m3_trig_r & I_soft_trig_enable) ||
                            (|(match_bits & I_pattern_trig_enable)  & !(|(match_bits_r & I_pattern_trig_enable)) )) );
 
-
+   wire swo_data_ready_traceclk_premask;
    wire swo_data_ready_traceclk;
    reg swo_data_ready_traceclk_r;
+   wire reset_sync_arm_pulse;
+   reg arm_usb_r;
+   always @(posedge usb_clk)
+       arm_usb_r <= I_arm_usb;
+   assign reset_sync_arm_pulse = I_arm_usb && ~arm_usb_r;
 
    cdc_pulse U_reset_sync_cdc (
       .reset_i       (reset),
       .src_clk       (usb_clk),
-      .src_pulse     (I_reset_sync_arm || I_reset_sync_reg),
+      .src_pulse     (reset_sync_arm_pulse || I_reset_sync_reg),
       .dst_clk       (fe_clk),
       .dst_pulse     (reset_sync)
    );
-
 
    cdc_pulse U_capture_now_cdc (
       .reset_i       (reset),
@@ -182,21 +186,20 @@ module fe_capture_trace #(
       .dst_pulse     (capture_now_pulse)
    );
 
-
    cdc_bus #(
       .pDATA_WIDTH   (8)
    ) U_swo_cdc (
       .reset_i       (reset),
       .clear_error   (I_clear_errors),
       .src_clk       (swo_clk),
-      .src_pulse     (I_swo_data_ready && (I_arm || I_capturing || I_triggering)),
+      .src_pulse     (I_swo_data_ready),
       .src_data      (I_swo_data),
       .src_overflow  (O_swo_cdc_overflow),
       .dst_clk       (fe_clk),
-      .dst_pulse     (swo_data_ready_traceclk),
+      .dst_pulse     (swo_data_ready_traceclk_premask),
       .dst_data      (swo_data_reg)
    );
-
+   assign swo_data_ready_traceclk = swo_data_ready_traceclk_premask && (I_arm_fe || I_capturing || I_triggering);
 
    wire [7:0] swo_buf_in = {swo_data_reg[0],
                             swo_data_reg[1],
@@ -513,7 +516,7 @@ module fe_capture_trace #(
           .probe9       (valid_buffer),         // input wire [0:0]  probe9 
           .probe10      (I_clear_errors),       // input wire [0:0]  probe10
           .probe11      (I_swo_data_ready),     // input wire [0:0]  probe11
-          .probe12      (I_arm),                // input wire [0:0]  probe12
+          .probe12      (I_arm_fe),             // input wire [0:0]  probe12
           .probe13      (I_capturing),          // input wire [0:0]  probe13
           .probe14      (I_triggering),         // input wire [0:0]  probe14
           .probe15      (I_swo_data),           // input wire [7:0]  probe15

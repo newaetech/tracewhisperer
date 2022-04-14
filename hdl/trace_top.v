@@ -50,6 +50,7 @@ module trace_top #(
   input  wire                           usb_clk,
   input  wire                           reset_pin,
   output wire                           fpga_reset,
+  input  wire                           I_external_arm,         // usb_clk clock domain
   output reg                            flash_pattern,
   input  wire [31:0]                    buildtime,
   output wire                           O_trace_en,
@@ -108,7 +109,8 @@ module trace_top #(
   output wire [pUSERIO_WIDTH-1:0]       O_userio_drive_data,
 
   // Status LEDs:
-  output wire                           arm,
+  output wire                           arm_usb,
+  output wire                           arm_fe,
   output wire                           capturing,
 
   // FIFO interface:
@@ -118,8 +120,6 @@ module trace_top #(
   output wire                           fifo_wr,
   output wire                           fifo_read,
   output wire                           fifo_flush,
-  output wire                           reg_arm,
-  output reg                            reg_arm_feclk,
   output wire                           clear_errors,
   input  wire [17:0]                    fifo_out_data,
   input  wire [5:0]                     fifo_status,
@@ -287,12 +287,9 @@ module trace_top #(
    wire [2:0] uart_rx_state;
    wire [3:0] uart_data_bits;
    wire [1:0] uart_stop_bits;
-   wire arm_pulse;
    wire reg_capture_off;
    wire reset_sync_from_reg;
    wire timestamps_disable;
-
-   (* ASYNC_REG = "TRUE" *) reg  [1:0] reg_arm_pipe;
 
    reg [25:0] timer_heartbeat;
    reg freq_measure;
@@ -442,8 +439,6 @@ module trace_top #(
       .reg_write        (reg_write), 
       .reg_addrvalid    (reg_addrvalid),
 
-      .fe_select        (),     // TODO: is this still needed?
-
       .userio_d         (userio_d),
       .O_userio_pwdriven (O_userio_pwdriven),
       .O_userio_drive_data (O_userio_drive_data),
@@ -459,9 +454,9 @@ module trace_top #(
       .O_usb_drive_data (usb_drive_data),
 
       .fe_clk           (fe_clk),
-      .O_arm            (arm),
-      .O_reg_arm        (reg_arm),
-      .O_arm_pulse      (arm_pulse),
+      .I_external_arm   (I_external_arm),
+      .O_arm_usb        (arm_usb),
+      .O_arm_fe         (arm_fe),
       .O_capture_off    (reg_capture_off),
       .I_flushing       (fifo_flush),
       .O_capture_len    (capture_len),
@@ -499,18 +494,6 @@ module trace_top #(
                       reg_trace_selected?  read_data_trace | read_data_trace_trigger_drp : 8'h00;
 
 
-   // CDC on reg_arm for fifo:
-   always @(posedge fe_clk) begin
-      if (reset) begin
-         reg_arm_feclk <= 0;
-         reg_arm_pipe <= 0;
-      end
-      else begin
-         {reg_arm_feclk, reg_arm_pipe} <= {reg_arm_pipe, reg_arm};
-      end
-   end
-
-
    fe_capture_main #(
       .pTIMESTAMP_FULL_WIDTH    (pTIMESTAMP_FULL_WIDTH),
       .pTIMESTAMP_SHORT_WIDTH   (pTIMESTAMP_SHORT_WIDTH),
@@ -522,8 +505,7 @@ module trace_top #(
       .trace_clock_sel          (trace_clock_sel),
 
       .I_timestamps_disable     (timestamps_disable),
-      .I_arm                    (arm),
-      .I_reg_arm                (reg_arm),
+      .I_arm_fe                 (arm_fe),
       .I_capture_len            (capture_len),
       .I_count_writes           (count_writes),
       .I_capture_off            (reg_capture_off),
@@ -584,14 +566,14 @@ module trace_top #(
    /* REGISTER CONNECTIONS */
       .O_fifo_fe_status         (synchronized),
       .I_trace_width            (trace_width),
-      .I_reset_sync_arm         (arm_pulse),
       .I_reset_sync_reg         (reset_sync_from_reg),
       .I_capture_raw            (capture_raw),
       .I_record_syncs           (record_syncs),
       .I_pattern_enable         (pattern_enable  ),
       .I_pattern_trig_enable    (pattern_trig_enable),
       .I_soft_trig_enable       (soft_trig_enable),
-      .I_arm                    (reg_arm_feclk),
+      .I_arm_fe                 (arm_fe),
+      .I_arm_usb                (arm_usb),
       .I_swo_enable             (swo_enable),
       .I_capture_now            (capture_now),
       .revbuffer                (revbuffer),
@@ -710,7 +692,7 @@ module trace_top #(
           .reset_i          (reset),
           .fe_clk           (fe_clk),
           .usb_clk          (usb_clk),
-          .I_arm            (reg_arm_feclk),
+          .I_arm            (arm_fe),
           .O_trigger        (O_trace_trig_out),
           .O_capture_enable_pulse (capture_enable_pulse),
           .I_trigger_enable (trigger_enable),
