@@ -79,7 +79,8 @@ module tracewhisperer_top #(
   output wire led4
 );
 
-  wire arm;
+  wire arm_usb;
+  wire arm_fe;
   wire capturing;
   wire fe_clk;
   wire fpga_reset;
@@ -112,8 +113,6 @@ module tracewhisperer_top #(
   wire           fifo_wr;
   wire           fifo_read;
   wire           fifo_flush;
-  wire           reg_arm;
-  wire           reg_arm_feclk;
   wire           clear_errors;
   wire [17:0]    fifo_out_data;
   wire [5:0]     fifo_status;
@@ -141,7 +140,7 @@ module tracewhisperer_top #(
           led3 = count_trace_clock[22];
       end
       else begin
-          led2 = arm;
+          led2 = arm_usb;
           led3 = capturing;
       end
   end
@@ -270,6 +269,7 @@ module tracewhisperer_top #(
       .usb_clk          (clk_usb_buf),
       .reset_pin        (1'b0),
       .fpga_reset       (fpga_reset),
+      .I_external_arm   (1'b0), // Husky only
       .flash_pattern    (flash_pattern),
       .buildtime        (buildtime),
       .O_trace_en       (), // Husky only
@@ -322,7 +322,8 @@ module tracewhisperer_top #(
       .O_userio_pwdriven (userio_pwdriven),
       .O_userio_drive_data (userio_drive_data),
 
-      .arm              (arm),
+      .arm_usb          (arm_usb),
+      .arm_fe           (arm_fe),
       .capturing        (capturing),
 
       .fifo_full        (fifo_full),
@@ -332,8 +333,6 @@ module tracewhisperer_top #(
                                
       .fifo_read        (fifo_read),
       .fifo_flush       (fifo_flush),
-      .reg_arm          (reg_arm),
-      .reg_arm_feclk    (reg_arm_feclk),
       .clear_errors     (clear_errors),
                                
       .fifo_out_data    (fifo_out_data),
@@ -368,8 +367,8 @@ module tracewhisperer_top #(
 
       .I_fifo_read              (fifo_read),
       .I_fifo_flush             (fifo_flush),
-      .I_clear_read_flags       (reg_arm),
-      .I_clear_write_flags      (reg_arm_feclk),
+      .I_clear_read_flags       (arm_usb),
+      .I_clear_write_flags      (arm_fe),
       .I_clear_errors           (clear_errors),
 
       .O_data                   (fifo_out_data),

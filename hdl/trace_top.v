@@ -50,9 +50,11 @@ module trace_top #(
   input  wire                           usb_clk,
   input  wire                           reset_pin,
   output wire                           fpga_reset,
+  input  wire                           I_external_arm,         // usb_clk clock domain
   output reg                            flash_pattern,
   input  wire [31:0]                    buildtime,
   output wire                           O_trace_en,
+  output wire                           O_trace_capture_on,
   output wire [7:0]                     O_trace_userio_dir,
 
   input wire                            target_clk,
@@ -107,7 +109,8 @@ module trace_top #(
   output wire [pUSERIO_WIDTH-1:0]       O_userio_drive_data,
 
   // Status LEDs:
-  output wire                           arm,
+  output wire                           arm_usb,
+  output wire                           arm_fe,
   output wire                           capturing,
 
   // FIFO interface:
@@ -117,8 +120,6 @@ module trace_top #(
   output wire                           fifo_wr,
   output wire                           fifo_read,
   output wire                           fifo_flush,
-  output wire                           reg_arm,
-  output reg                            reg_arm_feclk,
   output wire                           clear_errors,
   input  wire [17:0]                    fifo_out_data,
   input  wire [5:0]                     fifo_status,
@@ -255,9 +256,11 @@ module trace_top #(
    wire trigger_enable;
    wire soft_trig_enable;
    wire [pNUM_TRIGGER_WIDTH-1:0] num_triggers;
+   wire [pNUM_TRIGGER_WIDTH-1:0] triggers_generated;
    wire [pALL_TRIGGER_DELAY_WIDTHS-1:0] trigger_delay;
    wire [pALL_TRIGGER_WIDTH_WIDTHS-1:0] trigger_width;
    wire trigger_match;
+   wire triggering;
 
    wire [pCAPTURE_LEN_WIDTH-1:0] capture_len;
    wire count_writes;
@@ -274,20 +277,19 @@ module trace_top #(
 
    wire capture_enable;
 
-   wire [7:0] swo_bitrate_div;
+   wire [15:0] swo_bitrate_div;
    wire swo_enable;
    wire swo_data_ready;
    wire [7:0] swo_data_byte;
    wire swo_cdc_fifo_overflow;
    reg swo_ack;
+   wire uart_reset;
    wire [2:0] uart_rx_state;
    wire [3:0] uart_data_bits;
    wire [1:0] uart_stop_bits;
-   wire arm_pulse;
+   wire reg_capture_off;
    wire reset_sync_from_reg;
    wire timestamps_disable;
-
-   (* ASYNC_REG = "TRUE" *) reg  [1:0] reg_arm_pipe;
 
    reg [25:0] timer_heartbeat;
    reg freq_measure;
@@ -306,6 +308,7 @@ module trace_top #(
 
    assign O_error_flag = swo_cdc_fifo_overflow || fifo_error_flag;
 
+   assign O_trace_capture_on = ~reg_capture_off & O_trace_en;
 
    reg_trace #(
       .pBYTECNT_SIZE            (pBYTECNT_SIZE),
@@ -378,6 +381,9 @@ module trace_top #(
 
       .O_reset_sync             (reset_sync_from_reg),
 
+      .uart_reset               (uart_reset),
+      .uart_state               (uart_rx_state),
+
       .I_fe_clock_count         (I_fe_clock_count),
       .selected                 (reg_trace_selected)
    );
@@ -413,6 +419,7 @@ module trace_top #(
 
    reg_main #(
       .pBYTECNT_SIZE            (pBYTECNT_SIZE),
+      .pBUFFER_SIZE             (pBUFFER_SIZE),
       .pNUM_TRIGGER_PULSES      (pNUM_TRIGGER_PULSES),
       .pNUM_TRIGGER_WIDTH       (pNUM_TRIGGER_WIDTH),
       .pCAPTURE_LEN_WIDTH       (pCAPTURE_LEN_WIDTH),
@@ -432,8 +439,6 @@ module trace_top #(
       .reg_write        (reg_write), 
       .reg_addrvalid    (reg_addrvalid),
 
-      .fe_select        (),     // TODO: is this still needed?
-
       .userio_d         (userio_d),
       .O_userio_pwdriven (O_userio_pwdriven),
       .O_userio_drive_data (O_userio_drive_data),
@@ -449,9 +454,10 @@ module trace_top #(
       .O_usb_drive_data (usb_drive_data),
 
       .fe_clk           (fe_clk),
-      .O_arm            (arm),
-      .O_reg_arm        (reg_arm),
-      .O_arm_pulse      (arm_pulse),
+      .I_external_arm   (I_external_arm),
+      .O_arm_usb        (arm_usb),
+      .O_arm_fe         (arm_fe),
+      .O_capture_off    (reg_capture_off),
       .I_flushing       (fifo_flush),
       .O_capture_len    (capture_len),
       .O_count_writes   (count_writes),
@@ -473,6 +479,7 @@ module trace_top #(
       .O_trigger_width  (trigger_width),
       .O_trigger_enable (trigger_enable),
       .O_num_triggers   (num_triggers),
+      .I_triggers_generated (triggers_generated),
 
       // Trigger clock phase shift:
       .O_psincdec       (trigger_clk_psincdec),
@@ -487,18 +494,6 @@ module trace_top #(
                       reg_trace_selected?  read_data_trace | read_data_trace_trigger_drp : 8'h00;
 
 
-   // CDC on reg_arm for fifo:
-   always @(posedge fe_clk) begin
-      if (reset) begin
-         reg_arm_feclk <= 0;
-         reg_arm_pipe <= 0;
-      end
-      else begin
-         {reg_arm_feclk, reg_arm_pipe} <= {reg_arm_pipe, reg_arm};
-      end
-   end
-
-
    fe_capture_main #(
       .pTIMESTAMP_FULL_WIDTH    (pTIMESTAMP_FULL_WIDTH),
       .pTIMESTAMP_SHORT_WIDTH   (pTIMESTAMP_SHORT_WIDTH),
@@ -510,10 +505,10 @@ module trace_top #(
       .trace_clock_sel          (trace_clock_sel),
 
       .I_timestamps_disable     (timestamps_disable),
-      .I_arm                    (arm),
-      .I_reg_arm                (reg_arm),
+      .I_arm_fe                 (arm_fe),
       .I_capture_len            (capture_len),
       .I_count_writes           (count_writes),
+      .I_capture_off            (reg_capture_off),
       .I_counter_quick_start    (counter_quick_start),
       .I_max_timestamp          (max_timestamp),
 
@@ -571,14 +566,14 @@ module trace_top #(
    /* REGISTER CONNECTIONS */
       .O_fifo_fe_status         (synchronized),
       .I_trace_width            (trace_width),
-      .I_reset_sync_arm         (arm_pulse),
       .I_reset_sync_reg         (reset_sync_from_reg),
       .I_capture_raw            (capture_raw),
       .I_record_syncs           (record_syncs),
       .I_pattern_enable         (pattern_enable  ),
       .I_pattern_trig_enable    (pattern_trig_enable),
       .I_soft_trig_enable       (soft_trig_enable),
-      .I_arm                    (reg_arm_feclk),
+      .I_arm_fe                 (arm_fe),
+      .I_arm_usb                (arm_usb),
       .I_swo_enable             (swo_enable),
       .I_capture_now            (capture_now),
       .revbuffer                (revbuffer),
@@ -615,6 +610,7 @@ module trace_top #(
 
    /* TRIGGER  CONNECTIONS */
       .O_trigger_match          (trigger_match),
+      .I_triggering             (triggering),
       .m3_trig                  (m3_trig)
 
    /* PATTERN MATCHER CONNECTIONS
@@ -628,9 +624,9 @@ module trace_top #(
       uart_core U_uart_rx (
          //.clk                      (trace_clk),
          .clk                      (trigger_clk),
-         .reset_n                  (~reset),
+         .reset_n                  (~(reset || uart_reset)),
          // Configuration inputs
-         .bit_rate                 ({8'b0, swo_bitrate_div}),
+         .bit_rate                 (swo_bitrate_div),
          .data_bits                (uart_data_bits),
          .stop_bits                (uart_stop_bits),
          // External data interface
@@ -651,9 +647,10 @@ module trace_top #(
 
    `ifdef ILA_UART
        ila_uart I_ila_uart (
-          .clk          (trigger_clk),          // input wire clk
+          //.clk          (trigger_clk),          // input wire clk
+          .clk          (usb_clk),          // input wire clk
           .probe0       (swo),                  // input wire [0:0]  probe0  
-          .probe1       (swo_bitrate_div),      // input wire [7:0]  probe1 
+          .probe1       (swo_bitrate_div[7:0]), // input wire [7:0]  probe1 
           .probe2       (swo_data_ready),       // input wire [0:0]  probe2 
           .probe3       (swo_ack),              // input wire [0:0]  probe3 
           .probe4       (uart_rx_state),        // input wire [2:0]  probe4 
@@ -663,29 +660,52 @@ module trace_top #(
    `endif
 
 
-   pw_trigger #(
-      .pCAPTURE_DELAY_WIDTH     (pCAPTURE_DELAY_WIDTH),
-      .pTRIGGER_DELAY_WIDTH     (pTRIGGER_DELAY_WIDTH),
-      .pTRIGGER_WIDTH_WIDTH     (pTRIGGER_WIDTH_WIDTH),
-      .pALL_TRIGGER_DELAY_WIDTHS(pALL_TRIGGER_DELAY_WIDTHS),
-      .pALL_TRIGGER_WIDTH_WIDTHS(pALL_TRIGGER_WIDTH_WIDTHS),
-      .pNUM_TRIGGER_PULSES      (pNUM_TRIGGER_PULSES),
-      .pNUM_TRIGGER_WIDTH       (pNUM_TRIGGER_WIDTH)
-   ) U_trigger (
-      .reset_i          (reset),
-      .trigger_clk      (trigger_clk),
-      .fe_clk           (fe_clk),
-      .O_trigger        (O_trace_trig_out),
-      .I_capture_delay  (18'b0),    // TODO- not needed?
-      .I_trigger_delay  (trigger_delay),
-      .I_trigger_width  (trigger_width),
-      .I_trigger_enable (trigger_enable),
-      .I_num_triggers   (num_triggers),
-      .O_capture_enable_pulse (capture_enable_pulse),
-      .I_match          (trigger_match),
-      .I_capturing      (capturing),
-      .O_capture_enable (capture_enable)
-   );
+   `ifdef PW_TRIGGER
+       pw_trigger #(
+          .pCAPTURE_DELAY_WIDTH     (pCAPTURE_DELAY_WIDTH),
+          .pTRIGGER_DELAY_WIDTH     (pTRIGGER_DELAY_WIDTH),
+          .pTRIGGER_WIDTH_WIDTH     (pTRIGGER_WIDTH_WIDTH),
+          .pALL_TRIGGER_DELAY_WIDTHS(pALL_TRIGGER_DELAY_WIDTHS),
+          .pALL_TRIGGER_WIDTH_WIDTHS(pALL_TRIGGER_WIDTH_WIDTHS),
+          .pNUM_TRIGGER_PULSES      (pNUM_TRIGGER_PULSES),
+          .pNUM_TRIGGER_WIDTH       (pNUM_TRIGGER_WIDTH)
+       ) U_trigger (
+          .reset_i          (reset),
+          .trigger_clk      (trigger_clk),
+          .fe_clk           (fe_clk),
+          .O_trigger        (O_trace_trig_out),
+          .I_capture_delay  (18'b0),
+          .I_trigger_delay  (trigger_delay),
+          .I_trigger_width  (trigger_width),
+          .I_trigger_enable (trigger_enable),
+          .I_num_triggers   (num_triggers),
+          .O_capture_enable_pulse (capture_enable_pulse),
+          .I_match          (trigger_match),
+          .I_capturing      (capturing),
+          .O_capture_enable (capture_enable)
+       );
+
+   `else
+       simple_trigger #(
+          .pNUM_TRIGGER_WIDTH (pNUM_TRIGGER_WIDTH)
+       ) U_simple_trigger (
+          .reset_i          (reset),
+          .fe_clk           (fe_clk),
+          .usb_clk          (usb_clk),
+          .I_arm            (arm_fe),
+          .O_trigger        (O_trace_trig_out),
+          .O_capture_enable_pulse (capture_enable_pulse),
+          .I_trigger_enable (trigger_enable),
+          .I_capture_off    (reg_capture_off),
+          .I_num_triggers   (num_triggers),
+          .O_triggers_generated (triggers_generated),
+          .I_match          (trigger_match),
+          .O_triggering     (triggering),
+          .I_capturing      (capturing),
+          .O_capture_enable (capture_enable)
+       );
+   `endif
+
 
    // measure fe_clk and trigger_clk frequency: divide clock by 2^23 for frequency measurement
    always @(posedge usb_clk) begin
