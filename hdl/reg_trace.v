@@ -106,6 +106,15 @@ module reg_trace #(
    output reg                                   uart_reset,
    input  wire [2:0]                            uart_state,
 
+   output reg                                   idelay_reset,
+   output reg                                   idelay_inc,
+   output reg                                   idelay_ce,
+   output reg                                   idelay_ld,
+   output reg  [4:0]                            idelay_cnt,
+   input  wire [4:0]                            idelay_cnt_out,
+   input  wire                                  ref_locked,
+   input  wire                                  idelay_ready,
+
    output wire                                  selected
 
 );
@@ -118,6 +127,7 @@ module reg_trace #(
    reg  reset_sync;
    reg  reset_sync_r;
    reg  [7:0] read_data_r;
+   reg  reg_write_r;
 
    assign selected = reg_addrvalid & reg_address[7:6] == pSELECT;
    wire [5:0] address = reg_address[5:0];
@@ -182,6 +192,8 @@ module reg_trace #(
 
             `REG_TRACE_USERIO_DIR:      reg_read_data = O_trace_userio_dir;
             `REG_UART:                  reg_read_data = uart_state;
+
+            `REG_TRACE_IDELAY:          reg_read_data = {idelay_cnt_out, 1'b0, idelay_ready, ref_locked};
 
             default:                    reg_read_data = 0;
 
@@ -248,9 +260,16 @@ module reg_trace #(
          uart_reset <= 0;
          O_trace_en <= 0;
          O_trace_userio_dir <= 8'b00000011; // 7-4:trace data inputs; 3:nRESET; 2:TDO/SWO; 1-0:outputs for JTAG to SWD switching
+         reg_write_r <= 0;
+         idelay_reset <= 1'b0;
+         idelay_inc <= 1'b0;
+         idelay_ce <= 1'b0;
+         idelay_ld <= 1'b0;
+         idelay_cnt <= 5'b0;
       end
 
       else begin
+         reg_write_r <= reg_write;
          if (selected && reg_write) begin
             case (address)
                `REG_CLKSETTINGS:        O_clksettings <= write_data;
@@ -287,6 +306,7 @@ module reg_trace #(
                `REG_FE_CLOCK_SEL:       O_fe_clk_sel <= write_data[1:0];
                `REG_TRACE_EN:           O_trace_en <= write_data[0];
                `REG_TRACE_USERIO_DIR:   O_trace_userio_dir <= write_data;
+               `REG_TRACE_IDELAY_RESET: idelay_reset <= write_data[0];
 
             endcase
          end
@@ -304,14 +324,25 @@ module reg_trace #(
          else 
             uart_reset <= 1'b0;
 
+         // REG_TRACE_IDELAY register is special:
+         if (selected && reg_write && (address == `REG_TRACE_IDELAY) && ~reg_write_r) begin
+            idelay_inc <= write_data[0];
+            idelay_ce <= write_data[1];
+            idelay_ld <= write_data[2];
+            idelay_cnt <= write_data[7:3];
+         end
+         else begin
+            idelay_inc <= 1'b0;
+            idelay_ce <= 1'b0;
+            idelay_ld <= 1'b0;
+         end
+
       end
    end
 
    assign O_reset_sync = reset_sync & ~reset_sync_r;
 
-
    `ifdef ILA_REG_TRACE
-
        ila_2 U_reg_ila (
 	.clk            (usb_clk),                      // input wire clk
 	.probe0         (reg_address[7:0]),             // input wire [7:0]  probe0  
@@ -326,8 +357,6 @@ module reg_trace #(
 	.probe9         (O_pattern_enable),             // input wire [7:0]  probe9
 	.probe10        (O_fe_clk_sel)                  // input wire [1:0]  probe10
        );
-
-
    `endif
 
 endmodule

@@ -128,7 +128,10 @@ module trace_top #(
   output wire                           synchronized,
 
   // Debug:
-  output wire [7:0]                     trace_data_sdr
+  output wire [8:0]                     trace_debug,
+  output wire [7:0]                     trace_data_sdr,
+  output wire                           trace_clk_in_del
+
 );
 
    parameter pALL_TRIGGER_DELAY_WIDTHS = 24*pNUM_TRIGGER_PULSES;
@@ -141,6 +144,14 @@ module trace_top #(
    wire reset;
 
    wire [7:0] trace_data_iddr;
+   wire idelay_ld;
+   wire idelay_ce;
+   wire idelay_inc;
+   wire ref_locked;
+   wire idelay_ready;
+   wire idelay_reset;
+   wire [4:0] idelay_cnt;
+   wire [4:0] idelay_cnt_out;
 
    `ifdef __ICARUS__
       assign trace_data_iddr = I_trace_sdr;
@@ -164,12 +175,73 @@ module trace_top #(
                //.Q2               (trace_data_iddr[i]),
                .D                (trace_data[i]),
                .CE               (1'b1),
-               .C                (trace_clk_in),
+               .C                (trace_clk_in_del),
                .S                (1'b0),
                .R                (1'b0)
             );
          end
       endgenerate
+
+      wire ref_clk;
+      idelay_ref_clk U_idelay_ref_clk (
+          .clk_out1     (ref_clk),
+          .reset        (fpga_reset),
+          .locked       (ref_locked),
+          .clk_in1      (usb_clk)
+      );
+
+      IDELAYE2 #(
+          .IDELAY_TYPE                  ("VAR_LOAD"),
+          .DELAY_SRC                    ("DATAIN"),
+          .IDELAY_VALUE                 (16),
+          .HIGH_PERFORMANCE_MODE        ("FALSE"),
+          //.SIGNAL_PATTERN               ("DATA"),
+          .SIGNAL_PATTERN               ("CLOCK"),
+          .REFCLK_FREQUENCY             (200),
+          .CINVCTRL_SEL                 ("FALSE"),
+          .PIPE_SEL                     ("FALSE")
+      ) U_traceclock_delay (
+          .C                            (usb_clk),
+          .REGRST                       (1'b0),
+          .LD                           (idelay_ld),
+          .CE                           (idelay_ce),
+          .INC                          (idelay_inc),
+          .CINVCTRL                     (1'b0),
+          .CNTVALUEIN                   (idelay_cnt),
+          .IDATAIN                      (1'b0),
+          .DATAIN                       (trace_clk_in),
+          .LDPIPEEN                     (1'b0),
+          .DATAOUT                      (trace_clk_in_del),
+          .CNTVALUEOUT                  (idelay_cnt_out)
+      );
+      
+      IDELAYCTRL U_idelayctrl (
+          .RST          (idelay_reset),
+          .REFCLK       (ref_clk),
+          .RDY          (idelay_ready)
+      );
+      
+
+       /*
+      selectio_wiz_0 U_selectio (
+          .data_in_from_pins    (trace_data),
+          .data_in_to_device    (trace_data_iddr),
+          .delay_clk            (usb_clk),
+          .in_delay_reset       (fpga_reset),   // TODO different reset?
+          .in_delay_data_ce     (idelay_ce),
+          .in_delay_data_inc    (idelay_inc),
+          .delay_locked         (delay_locked),
+          .ref_clock            (ref_clk),
+          .clk_in               (trace_clk_in),
+          .io_reset             (fpga_reset),
+          .clk_out              (trace_clk_in_del)
+      ); 
+       */
+
+
+      assign trace_debug = {2'b0, trace_data[3:0], trace_clk_in_del, trace_clk_in};
+      
+      
    `endif
 
    assign trace_data_sdr = trace_clock_sel? trace_data_iddr : {4'b0, trace_data};
@@ -188,7 +260,7 @@ module trace_top #(
          wire fe_clk_pre;
          BUFGMUX U_fe_clock_mux1 (
             .I0            (target_clk),
-            .I1            (trace_clk_in),
+            .I1            (trace_clk_in_del),
             .S             (fe_clk_sel[0]),
             .O             (fe_clk_pre)
          );
@@ -202,7 +274,7 @@ module trace_top #(
 
       `else
          assign fe_clk = fe_clk_sel[1]?  usb_clk :
-                         fe_clk_sel[0]?  trace_clk_in : 
+                         fe_clk_sel[0]?  trace_clk_in_del : 
                                          target_clk;
       `endif
 
@@ -383,6 +455,15 @@ module trace_top #(
 
       .uart_reset               (uart_reset),
       .uart_state               (uart_rx_state),
+
+      .idelay_reset             (idelay_reset),
+      .idelay_inc               (idelay_inc),
+      .idelay_ce                (idelay_ce),
+      .idelay_ld                (idelay_ld),
+      .idelay_cnt               (idelay_cnt),
+      .idelay_cnt_out           (idelay_cnt_out),
+      .ref_locked               (ref_locked),
+      .idelay_ready             (idelay_ready),
 
       .I_fe_clock_count         (I_fe_clock_count),
       .selected                 (reg_trace_selected)
@@ -765,7 +846,7 @@ module trace_top #(
 
 
 
-   `ifdef ILA_REG
+   `ifdef ILA_REG_TRACE
        // TODO- update
        ila_reg I_reg_ila (
           .clk          (usb_clk),              // input wire clk
