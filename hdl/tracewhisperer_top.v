@@ -274,6 +274,8 @@ module tracewhisperer_top #(
       .buildtime        (buildtime),
       .O_trace_en       (), // Husky only
       .O_trace_userio_dir (), // Husky only
+      .mmcm_shutdown    (1'b0), // Husky only
+      .trace_debug      (), // Husky only
 
       .trace_data       (trace_data),
       .swo              (swo),

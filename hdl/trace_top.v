@@ -56,6 +56,7 @@ module trace_top #(
   output wire                           O_trace_en,
   output wire                           O_trace_capture_on,
   output wire [7:0]                     O_trace_userio_dir,
+  input  wire                           mmcm_shutdown,
 
   input wire                            target_clk,
   input wire  [22:0]                    I_fe_clock_count,
@@ -128,6 +129,7 @@ module trace_top #(
   output wire                           synchronized,
 
   // Debug:
+  output wire [8:0]                     trace_debug,
   output wire [7:0]                     trace_data_sdr
 );
 
@@ -137,8 +139,139 @@ module trace_top #(
 
    wire [1:0]   fe_clk_sel;
    wire         trace_clock_sel;
+   wire         trace_clk_shifted;
+
+   wire [6:0]   traceclk_drp_addr;
+   wire         traceclk_drp_den;
+   wire [15:0]  traceclk_drp_din;
+   wire [15:0]  traceclk_drp_dout;
+   wire         traceclk_drp_dwe;
+   wire         traceclk_drp_reset;
+
+   wire         phase_load;
+   wire [15:0]  phase_requested;
+   wire         phase_done;
+   wire         mmcm_PSEN;
+   wire         mmcm_PSINCDEC;
+   wire         mmcm_PSDONE;
+
+   wire         phase_locked;
+   wire         traceclk_shift_en;
+   wire         trace_clk_selected;
 
    wire reset;
+
+
+`ifndef __ICARUS__
+   wire mmcm_clkfb;
+   MMCME2_ADV #(
+      .BANDWIDTH                    ("OPTIMIZED"), // Jitter programming (OPTIMIZED, HIGH, LOW)
+      .CLKFBOUT_MULT_F              (32.0), // Multiply value for all CLKOUT (2.000-64.000); default values allow for clock of 9 - 18 MHz
+      .CLKOUT0_DIVIDE_F             (32.0),
+      .CLKFBOUT_PHASE               (0.0), // Phase offset in degrees of CLKFB (-360.000-360.000).
+      .CLKIN1_PERIOD                (100.0),
+      .CLKOUT0_DUTY_CYCLE           (0.5),
+      .CLKOUT0_PHASE                (0.0),  // Phase offset for CLKOUT outputs (-360.000-360.000).
+      .CLKOUT4_CASCADE              ("FALSE"), // Cascade CLKOUT4 counter with CLKOUT6 (FALSE, TRUE)
+      .COMPENSATION                 ("INTERNAL"), // ZHOLD, BUF_IN, EXTERNAL, INTERNAL
+      .DIVCLK_DIVIDE                (1), // Master division value (1-106)
+      .STARTUP_WAIT                 ("FALSE"), // Delays DONE until MMCM is locked (FALSE, TRUE)
+      .CLKFBOUT_USE_FINE_PS         ("FALSE"),
+      .CLKOUT0_USE_FINE_PS          ("TRUE")
+   ) U_trace_clock_mmcm (
+      // Clock Outputs:
+      .CLKOUT0                      (trace_clk_shifted), 
+      .CLKOUT0B                     (),
+      .CLKOUT1                      (),
+      .CLKOUT1B                     (),
+      .CLKOUT2                      (),
+      .CLKOUT2B                     (),
+      .CLKOUT3                      (),
+      .CLKOUT3B                     (),
+      .CLKOUT4                      (),
+      .CLKOUT5                      (),
+      .CLKOUT6                      (),
+      // Feedback Clocks:
+      .CLKFBOUT                     (mmcm_clkfb),
+      .CLKFBOUTB                    (),
+      // Status Ports: 1-bit (each) output: MMCM status ports
+      .CLKFBSTOPPED                 (),
+      .CLKINSTOPPED                 (),
+      .LOCKED                       (phase_locked),
+      // Clock Inputs:
+      .CLKIN1                       (trace_clk_in),
+      .CLKIN2                       (1'b0),
+      // Control Ports: 1-bit (each) input: MMCM control ports
+      .CLKINSEL                     (1'b1),
+      .PWRDWN                       (~traceclk_shift_en || mmcm_shutdown),
+      .RST                          (traceclk_drp_reset),
+      // DRP Ports:
+      .DADDR                        (traceclk_drp_addr),
+      .DCLK                         (usb_clk),
+      .DEN                          (traceclk_drp_den),
+      .DI                           (traceclk_drp_din),
+      .DWE                          (traceclk_drp_dwe),
+      .DO                           (traceclk_drp_dout),
+      .DRDY                         (),
+      // Dynamic Phase Shift Ports:
+      .PSCLK                        (usb_clk),
+      .PSEN                         (mmcm_PSEN),
+      .PSINCDEC                     (mmcm_PSINCDEC),
+      .PSDONE                       (mmcm_PSDONE),
+      // Feedback Clocks
+      .CLKFBIN                      (mmcm_clkfb) // 1-bit input: Feedback clock
+   );
+
+   BUFGMUX #(
+        .CLK_SEL_TYPE("ASYNC")
+   ) U_traceclk_sel (
+       .O      (trace_clk_selected),
+       .I0     (trace_clk_in),
+       .I1     (trace_clk_shifted),
+       .S      (traceclk_shift_en)
+   );
+
+
+`else
+   assign #1 trace_clk_shifted = trace_clk_in;
+   assign trace_clk_selected = traceclk_shift_en? trace_clk_shifted : trace_clk_in;
+
+`endif
+
+   reg_mmcm_drp #(
+      .pBYTECNT_SIZE    (pBYTECNT_SIZE),
+      .pDRP_ADDR        (`REG_TRACECLK_DRP_ADDR),
+      .pDRP_DATA        (`REG_TRACECLK_DRP_DATA),
+      .pDRP_RESET       (`REG_TRACECLK_DRP_RESET)
+   ) U_trace_clock_drp (
+      .reset_i          (reset),
+      .clk_usb          (usb_clk),
+      .selected         (reg_trace_selected),
+      .reg_address      ({2'b0, reg_address[5:0]}), 
+      .reg_bytecnt      (reg_bytecnt), 
+      .reg_datao        (read_data_traceclk_drp), 
+      .reg_datai        (write_data), 
+      .reg_read         (reg_read), 
+      .reg_write        (reg_write), 
+      .drp_addr         (traceclk_drp_addr ),
+      .drp_den          (traceclk_drp_den  ),
+      .drp_din          (traceclk_drp_din  ),
+      .drp_dout         (traceclk_drp_dout ),
+      .drp_dwe          (traceclk_drp_dwe  ),
+      .drp_reset        (traceclk_drp_reset)
+   ); 
+
+   mmcm_phaseshift_interface U_trace_clock_shift (
+       .clk_usb         (usb_clk),
+       .reset           (traceclk_drp_reset),
+       .I_step_index    (phase_requested),
+       .I_load          (phase_load),
+       .O_done          (phase_done),
+       .O_psen          (mmcm_PSEN),
+       .O_psincdec      (mmcm_PSINCDEC),
+       .I_psdone        (mmcm_PSDONE)
+   );
+
 
    wire [7:0] trace_data_iddr;
 
@@ -164,7 +297,7 @@ module trace_top #(
                //.Q2               (trace_data_iddr[i]),
                .D                (trace_data[i]),
                .CE               (1'b1),
-               .C                (trace_clk_in),
+               .C                (trace_clk_selected),
                .S                (1'b0),
                .R                (1'b0)
             );
@@ -175,6 +308,13 @@ module trace_top #(
    assign trace_data_sdr = trace_clock_sel? trace_data_iddr : {4'b0, trace_data};
 
    assign fpga_reset = reset;
+
+   assign trace_debug = { 1'b0,
+                          trace_data,           // D6:D3
+                          trace_clk_shifted,    // D2
+                          trace_clk_in,         // D1
+                          target_clk            // D0
+                        };
 
 
    `ifdef CW305
@@ -188,7 +328,7 @@ module trace_top #(
          wire fe_clk_pre;
          BUFGMUX U_fe_clock_mux1 (
             .I0            (target_clk),
-            .I1            (trace_clk_in),
+            .I1            (trace_clk_selected),
             .S             (fe_clk_sel[0]),
             .O             (fe_clk_pre)
          );
@@ -202,7 +342,7 @@ module trace_top #(
 
       `else
          assign fe_clk = fe_clk_sel[1]?  usb_clk :
-                         fe_clk_sel[0]?  trace_clk_in : 
+                         fe_clk_sel[0]?  trace_clk_selected : 
                                          target_clk;
       `endif
 
@@ -303,6 +443,7 @@ module trace_top #(
 
    wire [7:0]   read_data_trace;
    wire [7:0]   read_data_trace_trigger_drp;
+   wire [7:0]   read_data_traceclk_drp;
    wire [7:0]   read_data_main;
    wire [pBUFFER_SIZE-1:0] revbuffer;
 
@@ -383,6 +524,12 @@ module trace_top #(
 
       .uart_reset               (uart_reset),
       .uart_state               (uart_rx_state),
+
+      .O_phase_load             (phase_load),
+      .O_phase_requested        (phase_requested),
+      .I_phase_done             (phase_done),
+      .I_phase_locked           (phase_locked),
+      .O_traceclk_shift_en      (traceclk_shift_en),
 
       .I_fe_clock_count         (I_fe_clock_count),
       .selected                 (reg_trace_selected)
@@ -491,7 +638,7 @@ module trace_top #(
    );
 
    assign read_data = reg_main_selected? read_data_main :
-                      reg_trace_selected?  read_data_trace | read_data_trace_trigger_drp : 8'h00;
+                      reg_trace_selected?  read_data_trace | read_data_trace_trigger_drp | read_data_traceclk_drp : 8'h00;
 
 
    fe_capture_main #(

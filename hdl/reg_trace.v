@@ -106,6 +106,12 @@ module reg_trace #(
    output reg                                   uart_reset,
    input  wire [2:0]                            uart_state,
 
+   output reg                                   O_phase_load,
+   output reg  [15:0]                           O_phase_requested,
+   input  wire                                  I_phase_done,
+   input  wire                                  I_phase_locked,
+   output reg                                   O_traceclk_shift_en,
+
    output wire                                  selected
 
 );
@@ -118,6 +124,7 @@ module reg_trace #(
    reg  reset_sync;
    reg  reset_sync_r;
    reg  [7:0] read_data_r;
+   reg  phase_done_reg;
 
    assign selected = reg_addrvalid & reg_address[7:6] == pSELECT;
    wire [5:0] address = reg_address[5:0];
@@ -182,6 +189,9 @@ module reg_trace #(
 
             `REG_TRACE_USERIO_DIR:      reg_read_data = O_trace_userio_dir;
             `REG_UART:                  reg_read_data = uart_state;
+
+            `REG_TRACECLK_PHASE:        reg_read_data = {6'b0, I_phase_locked, phase_done_reg};
+            `REG_TRACECLK_SHIFT_EN:     reg_read_data = {7'b0, O_traceclk_shift_en};
 
             default:                    reg_read_data = 0;
 
@@ -248,6 +258,9 @@ module reg_trace #(
          uart_reset <= 0;
          O_trace_en <= 0;
          O_trace_userio_dir <= 8'b00000011; // 7-4:trace data inputs; 3:nRESET; 2:TDO/SWO; 1-0:outputs for JTAG to SWD switching
+         O_phase_load <= 0;
+         O_phase_requested <= 0;
+         O_traceclk_shift_en <= 0;
       end
 
       else begin
@@ -287,6 +300,7 @@ module reg_trace #(
                `REG_FE_CLOCK_SEL:       O_fe_clk_sel <= write_data[1:0];
                `REG_TRACE_EN:           O_trace_en <= write_data[0];
                `REG_TRACE_USERIO_DIR:   O_trace_userio_dir <= write_data;
+               `REG_TRACECLK_SHIFT_EN:  O_traceclk_shift_en <= write_data[0];
 
             endcase
          end
@@ -303,6 +317,22 @@ module reg_trace #(
             uart_reset <= 1'b1;
          else 
             uart_reset <= 1'b0;
+
+         // REG_TRACECLK_PHASE register is special:
+         if (selected && reg_write && (address == `REG_TRACECLK_PHASE)) begin
+            O_phase_requested[reg_bytecnt[0]*8 +: 8] <= write_data;
+            if (reg_bytecnt == 1)
+                O_phase_load <= 1'b1;
+            else
+                O_phase_load <= 1'b0;
+         end
+         else 
+             O_phase_load <= 1'b0;
+         if (O_phase_load)
+             phase_done_reg <= 1'b0;
+         else if (I_phase_done)
+             phase_done_reg <= 1'b1;
+
 
       end
    end

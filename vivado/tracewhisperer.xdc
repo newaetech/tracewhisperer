@@ -8,14 +8,14 @@ create_generated_clock -name fe_clk -source [get_pins U_trace_top/U_fe_clock_mux
 set_case_analysis 1 [get_pins U_trace_top/U_fe_clock_mux2/S]
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets target_clk_IBUF]
 
+create_generated_clock -name trace_clk_selected -source [get_pins U_trace_top/U_traceclk_sel/I0] -combinational [get_pins U_trace_top/U_traceclk_sel/O]
+create_generated_clock -name trace_clk_shifted [get_pins U_trace_top/U_trace_clock_mmcm/CLKOUT0]
+
+create_generated_clock -name trigger_clk [get_pins U_trigger_clock/inst/mmcm_adv_inst/CLKOUT0]
 
 set_clock_groups -asynchronous \
                  -group [get_clocks TRACECLOCK ] \
-                 -group [get_clocks fe_clk ]
-
-set_clock_groups -asynchronous \
-                 -group [get_clocks TRACECLOCK ] \
-                 -group [get_clocks usb_clk ]
+                 -group [get_clocks {fe_clk trace_clk_selected usb_clk} ]
 
 set_clock_groups -asynchronous \
                  -group [get_clocks target_clk ] \
@@ -24,6 +24,14 @@ set_clock_groups -asynchronous \
 set_clock_groups -asynchronous \
                  -group [get_clocks fe_clk ] \
                  -group [get_clocks usb_clk ]
+
+set_clock_groups -asynchronous \
+                 -group [get_clocks {trace_clk_selected trace_clk_shifted}] \
+                 -group [get_clocks {usb_clk fe_clk trigger_clk}]
+
+set_clock_groups -asynchronous \
+                 -group [get_clocks trigger_clk] \
+                 -group [get_clocks usb_clk]
 
 
 set_property PACKAGE_PIN K3 [get_ports USB_SPARE0]
