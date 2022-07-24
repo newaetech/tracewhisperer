@@ -42,8 +42,7 @@ module trace_top #(
   parameter pUSERIO_WIDTH = 4,
   parameter pMAIN_REG_SELECT  = `MAIN_REG_SELECT,
   parameter pTRACE_REG_SELECT = `TRACE_REG_SELECT,
-  parameter pREGISTERED_READ = 1,
-  parameter pHUSKY = 0
+  parameter pREGISTERED_READ = 1
 
 )(
   input  wire                           trace_clk_in,
@@ -162,8 +161,6 @@ module trace_top #(
 
    wire reset;
 
-   wire trace_clk_shifted_buf;
-
 `ifndef __ICARUS__
    wire mmcm_clkfb;
    MMCME2_ADV #(
@@ -233,20 +230,9 @@ module trace_top #(
        .S      (traceclk_shift_en)
    );
 
-   if (pHUSKY == 1) begin: gen_trace_clk_shifted_buf
-       BUFG U_shifted_buf(
-           .I       (trace_clk_shifted),
-           .O       (trace_clk_shifted_buf)
-       );
-   end
-   else begin: no_trace_clk_shifted_buf
-       assign trace_clk_shifted_buf = trace_clk_shifted;
-   end
-
 `else
    assign #1 trace_clk_shifted = trace_clk_in;
    assign trace_clk_selected = traceclk_shift_en? trace_clk_shifted : trace_clk_in;
-   assign trace_clk_shifted_buf = trace_clk_shifted;
 
 `endif
 
@@ -297,7 +283,6 @@ module trace_top #(
          for (i = 0; i < 4; i = i + 1) begin: gen_adc_data
             IDDR #(
                .DDR_CLK_EDGE     ("OPPOSITE_EDGE"),
-               //.DDR_CLK_EDGE     ("SAME_EDGE"),
                //.DDR_CLK_EDGE     ("SAME_EDGE_PIPELINED"),
                .INIT_Q1          (0),
                .INIT_Q2          (0),
@@ -308,13 +293,14 @@ module trace_top #(
                //.Q1               (trace_data_iddr[i+4]),
                //.Q2               (trace_data_iddr[i]),
                .D                (trace_data[i]),
-               .CE               (1'b1),
-               .C                (trace_clk_selected),
+               .CE               (trace_clock_sel),
+               .C                (fe_clk),
                .S                (1'b0),
                .R                (1'b0)
             );
          end
       endgenerate
+
    `endif
 
    assign trace_data_sdr = trace_clock_sel? trace_data_iddr : {4'b0, trace_data};
@@ -323,7 +309,7 @@ module trace_top #(
 
    assign trace_debug = { 1'b0,
                           trace_data,           // D6:D3
-                          trace_clk_shifted_buf,    // D2
+                          fe_clk,               // D2
                           trace_clk_in,         // D1
                           target_clk            // D0
                         };
