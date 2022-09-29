@@ -114,6 +114,9 @@ module trace_top #(
   output wire                           arm_fe,
   output wire                           capturing,
 
+  output wire                           capture_start,
+  output wire                           capture_done,
+
   // FIFO interface:
   input  wire                           fifo_full,
   input  wire                           fifo_overflow_blocked,
@@ -438,6 +441,7 @@ module trace_top #(
    wire freq_measure_fe_clk;
    reg [31:0] fe_frequency_int;
    reg [31:0] fe_frequency;
+   reg capturing_r;
 
    wire [7:0]   read_data_trace;
    wire [7:0]   read_data_trace_trigger_drp;
@@ -908,6 +912,15 @@ module trace_top #(
       end
    end
 
+   always @(posedge fe_clk) begin
+       if (reset)
+           capturing_r <= 1'b0;
+       else
+           capturing_r <= capturing;
+   end
+
+   assign capture_start = capturing && ~capturing_r;
+   assign capture_done = ~capturing && capturing_r;
 
 
    `ifdef ILA_REG
