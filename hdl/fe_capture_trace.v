@@ -54,6 +54,7 @@ module fe_capture_trace #(
     output wire [15:0] O_max_short_timestamp,
 
     /* REGISTER CONNECTIONS */
+    input  wire I_trace_test,
     output wire O_fifo_fe_status,
     input  wire [2:0] I_trace_width, // supported values: 1/2/4
     input  wire I_reset_sync_reg,
@@ -414,6 +415,9 @@ module fe_capture_trace #(
     end
 
 
+   reg [17:0] counter = 0;
+   always @(posedge fe_clk) if (I_trace_test) counter <= counter + 1;
+
    // FIFO write logic.
    // note: could maybe get away with combinatorial logic here?
    always @(posedge fe_clk) begin
@@ -424,7 +428,11 @@ module fe_capture_trace #(
       end
       else begin
          capture_raw <= I_capture_raw;
-         if (I_fifo_wr) begin
+         if (I_trace_test) begin
+            O_fifo_wr <= I_fifo_wr;
+            O_fifo_data <= counter;
+         end
+         else if (I_fifo_wr) begin
             O_fifo_wr <= 1'b1;
             O_fifo_data[`FE_FIFO_CMD_START +: `FE_FIFO_CMD_BIT_LEN] <= I_fifo_command;
             case (I_fifo_command)

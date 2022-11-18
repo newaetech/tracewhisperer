@@ -48,6 +48,7 @@ module trace_top #(
   input  wire                           trace_clk_in,
   output wire                           fe_clk,
   input  wire                           usb_clk,
+  input  wire                           fifo_rd_clk,            // ui_clk in Husky-Pro, usb_clk elsewhere
   input  wire                           reset_pin,
   output wire                           fpga_reset,
   input  wire                           I_external_arm,         // usb_clk clock domain
@@ -161,6 +162,8 @@ module trace_top #(
    wire         phase_locked;
    wire         traceclk_shift_en;
    wire         trace_clk_selected;
+
+   wire         trace_test;
 
    wire reset;
 
@@ -533,6 +536,8 @@ module trace_top #(
       .I_phase_locked           (phase_locked),
       .O_traceclk_shift_en      (traceclk_shift_en),
 
+      .O_ramp_test              (trace_test),
+
       .I_fe_clock_count         (I_fe_clock_count),
       .selected                 (reg_trace_selected)
    );
@@ -651,6 +656,7 @@ module trace_top #(
       .reset_i                  (reset), 
       .cwusb_clk                (usb_clk),
       .fe_clk                   (fe_clk), 
+      .fifo_rd_clk              (fifo_rd_clk),
       .trace_clock_sel          (trace_clock_sel),
 
       .I_timestamps_disable     (timestamps_disable),
@@ -658,6 +664,7 @@ module trace_top #(
       .I_capture_len            (capture_len),
       .I_count_writes           (count_writes),
       .I_capture_off            (reg_capture_off),
+      .I_test_mode              (trace_test),
       .I_counter_quick_start    (counter_quick_start),
       .I_max_timestamp          (max_timestamp),
 
@@ -713,6 +720,7 @@ module trace_top #(
       .O_max_short_timestamp    (max_short_timestamp),
 
    /* REGISTER CONNECTIONS */
+      .I_trace_test             (trace_test),
       .O_fifo_fe_status         (synchronized),
       .I_trace_width            (trace_width),
       .I_reset_sync_reg         (reset_sync_from_reg),

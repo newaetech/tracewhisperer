@@ -112,6 +112,8 @@ module reg_trace #(
    input  wire                                  I_phase_locked,
    output reg                                   O_traceclk_shift_en,
 
+   output reg                                   O_ramp_test,
+
    output wire                                  selected
 
 );
@@ -193,6 +195,8 @@ module reg_trace #(
             `REG_TRACECLK_PHASE:        reg_read_data = {6'b0, I_phase_locked, phase_done_reg};
             `REG_TRACECLK_SHIFT_EN:     reg_read_data = {7'b0, O_traceclk_shift_en};
 
+            `REG_TRACE_TEST:            reg_read_data = {7'b0, O_ramp_test};
+
             default:                    reg_read_data = 0;
 
          endcase
@@ -252,7 +256,7 @@ module reg_trace #(
          O_uart_stop_bits <= 1;
          O_uart_data_bits <= 8;
          O_record_syncs <= 0;
-         O_fe_clk_sel <= 0;
+         O_fe_clk_sel <= 2; // default to USB
          reset_sync <= 0;
          reset_sync_r <= 0;
          uart_reset <= 0;
@@ -261,6 +265,7 @@ module reg_trace #(
          O_phase_load <= 0;
          O_phase_requested <= 0;
          O_traceclk_shift_en <= 0;
+         O_ramp_test <= 0;
       end
 
       else begin
@@ -301,6 +306,7 @@ module reg_trace #(
                `REG_TRACE_EN:           O_trace_en <= write_data[0];
                `REG_TRACE_USERIO_DIR:   O_trace_userio_dir <= write_data;
                `REG_TRACECLK_SHIFT_EN:  O_traceclk_shift_en <= write_data[0];
+               `REG_TRACE_TEST:         O_ramp_test <= write_data[0];
 
             endcase
          end

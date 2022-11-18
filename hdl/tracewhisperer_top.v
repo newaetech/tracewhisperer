@@ -267,6 +267,7 @@ module tracewhisperer_top #(
       .trace_clk_in     (TRACECLOCK),
       .fe_clk           (fe_clk),
       .usb_clk          (clk_usb_buf),
+      .fifo_rd_clk      (clk_usb_buf),
       .reset_pin        (1'b0),
       .fpga_reset       (fpga_reset),
       .I_external_arm   (1'b0), // Husky only
