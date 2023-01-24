@@ -168,6 +168,7 @@ class UartTest(object):
         while True:
             await self.wait_signal(self.dut.rxd_syn, 1, self.dut.clk)
             rdata = self.dut.rxd_data.value >> (9 - self.data_bits)
+            self.dut._log.debug("%6s rep %d:  got raw %x" % (self.name, i, self.dut.rxd_data.value))
             edata = self.write_queue.get_nowait()
             if rdata != edata:
                 self.harness.inc_error()

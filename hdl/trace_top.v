@@ -424,13 +424,16 @@ module trace_top #(
    wire [15:0] swo_bitrate_div;
    wire swo_enable;
    wire swo_data_ready;
-   wire [7:0] swo_data_byte;
+   wire [8:0] swo_data_byte;
    wire swo_cdc_fifo_overflow;
    reg swo_ack;
    wire uart_reset;
    wire [2:0] uart_rx_state;
    wire [3:0] uart_data_bits;
    wire [1:0] uart_stop_bits;
+   wire uart_parity_bit;
+   wire uart_parity_enabled;
+   wire uart_parity_accept_errors;
    wire reg_capture_off;
    wire reset_sync_from_reg;
    wire timestamps_disable;
@@ -524,6 +527,9 @@ module trace_top #(
       .O_swo_bitrate_div        (swo_bitrate_div ),
       .O_uart_stop_bits         (uart_stop_bits  ),
       .O_uart_data_bits         (uart_data_bits  ),
+      .O_uart_parity_bit        (uart_parity_bit ),
+      .O_uart_parity_enabled    (uart_parity_enabled),
+      .O_uart_parity_accept_errors(uart_parity_accept_errors),
 
       .O_reset_sync             (reset_sync_from_reg),
 
@@ -707,6 +713,7 @@ module trace_top #(
    /* SWO */
       .I_swo_data_ready         (swo_data_ready),
       .I_swo_data               (swo_data_byte),
+      .I_swo_data_bits          (uart_data_bits),
       .O_swo_cdc_overflow       (swo_cdc_fifo_overflow),
       .I_clear_errors           (clear_errors),
 
@@ -786,6 +793,9 @@ module trace_top #(
          .bit_rate                 (swo_bitrate_div),
          .data_bits                (uart_data_bits),
          .stop_bits                (uart_stop_bits),
+         .parity_bit               (uart_parity_bit),
+         .parity_enabled           (uart_parity_enabled),
+         .parity_accept_errors     (uart_parity_accept_errors),
          // External data interface
          .rxd                      (swo),
          .txd                      (),
@@ -811,7 +821,7 @@ module trace_top #(
           .probe2       (swo_data_ready),       // input wire [0:0]  probe2 
           .probe3       (swo_ack),              // input wire [0:0]  probe3 
           .probe4       (uart_rx_state),        // input wire [2:0]  probe4 
-          .probe5       (swo_data_byte),        // input wire [7:0]  probe5 
+          .probe5       (swo_data_byte[7:0]),   // input wire [7:0]  probe5 
           .probe6       (m3_trig)               // input wire [0:0]  probe6 
        );
    `endif

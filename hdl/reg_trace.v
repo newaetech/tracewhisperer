@@ -98,6 +98,9 @@ module reg_trace #(
    output reg  [15:0]                           O_swo_bitrate_div,
    output reg  [1:0]                            O_uart_stop_bits,
    output reg  [3:0]                            O_uart_data_bits,
+   output wire                                  O_uart_parity_bit,
+   output wire                                  O_uart_parity_enabled,
+   output wire                                  O_uart_parity_accept_errors,
 
    output wire                                  O_reset_sync,
     
@@ -127,6 +130,11 @@ module reg_trace #(
    reg  reset_sync_r;
    reg  [7:0] read_data_r;
    reg  phase_done_reg;
+   reg  [2:0] reg_uart_parity_setting;
+
+   assign O_uart_parity_bit = reg_uart_parity_setting[0];
+   assign O_uart_parity_enabled = reg_uart_parity_setting[1];
+   assign O_uart_parity_accept_errors = reg_uart_parity_setting[2];
 
    assign selected = reg_addrvalid & reg_address[7:6] == pSELECT;
    wire [5:0] address = reg_address[5:0];
@@ -184,6 +192,7 @@ module reg_trace #(
             `REG_SWO_BITRATE_DIV:       reg_read_data = O_swo_bitrate_div[reg_bytecnt[0]*8 +: 8];
             `REG_UART_STOP_BITS:        reg_read_data = O_uart_stop_bits;
             `REG_UART_DATA_BITS:        reg_read_data = O_uart_data_bits;
+            `REG_UART_PARITY_SETTING:   reg_read_data = reg_uart_parity_setting;
 
             `REG_TRACE_EN:              reg_read_data = O_trace_en;
             `REG_FE_CLOCK_SEL:          reg_read_data = O_fe_clk_sel;
@@ -255,6 +264,7 @@ module reg_trace #(
          O_swo_enable <= 0;
          O_uart_stop_bits <= 1;
          O_uart_data_bits <= 8;
+         reg_uart_parity_setting <= 3'd0;
          O_record_syncs <= 0;
          O_fe_clk_sel <= 2; // default to USB
          reset_sync <= 0;
@@ -302,6 +312,7 @@ module reg_trace #(
                `REG_SWO_BITRATE_DIV:    O_swo_bitrate_div[reg_bytecnt[0]*8 +: 8] <= write_data;
                `REG_UART_STOP_BITS:     O_uart_stop_bits <= write_data[1:0];
                `REG_UART_DATA_BITS:     O_uart_data_bits <= write_data[3:0];
+               `REG_UART_PARITY_SETTING:reg_uart_parity_setting <= write_data[2:0];
                `REG_FE_CLOCK_SEL:       O_fe_clk_sel <= write_data[1:0];
                `REG_TRACE_EN:           O_trace_en <= write_data[0];
                `REG_TRACE_USERIO_DIR:   O_trace_userio_dir <= write_data;
