@@ -1,0 +1,51 @@
+[*]
+[*] GTKWave Analyzer v3.3.86 (w)1999-2017 BSI
+[*] Tue Jan 24 01:58:44 2023
+[*]
+[dumpfile] "/home/jpnewae/git/tracewhisperer/sim_uart/uart.fst"
+[dumpfile_mtime] "Tue Jan 24 01:48:37 2023"
+[dumpfile_size] 3647
+[savefile] "/home/jpnewae/git/tracewhisperer/sim_uart/uart.gtkw"
+[timestart] 0
+[size] 3840 2132
+[pos] -1 -1
+*-27.399977 264900000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] uart_cocowrapper.
+[sst_width] 402
+[signals_width] 292
+[sst_expanded] 1
+[sst_vpaned_height] 684
+@28
+uart_cocowrapper.U_dut.clk
+uart_cocowrapper.U_dut.reset_n
+@22
+uart_cocowrapper.errors[31:0]
+@28
+uart_cocowrapper.U_dut.rxd
+uart_cocowrapper.U_dut.txd
+uart_cocowrapper.U_dut.rxd_ack
+uart_cocowrapper.U_dut.rxd_syn
+@c00022
+uart_cocowrapper.U_dut.rxd_data[7:0]
+@28
+(0)uart_cocowrapper.U_dut.rxd_data[7:0]
+(1)uart_cocowrapper.U_dut.rxd_data[7:0]
+(2)uart_cocowrapper.U_dut.rxd_data[7:0]
+(3)uart_cocowrapper.U_dut.rxd_data[7:0]
+(4)uart_cocowrapper.U_dut.rxd_data[7:0]
+(5)uart_cocowrapper.U_dut.rxd_data[7:0]
+(6)uart_cocowrapper.U_dut.rxd_data[7:0]
+(7)uart_cocowrapper.U_dut.rxd_data[7:0]
+@1401200
+-group_end
+@2024
+^1 /home/jpnewae/git/tracewhisperer/sim_uart/rxstate.filter
+uart_cocowrapper.U_dut.rxd_state[2:0]
+@24
+uart_cocowrapper.U_dut.rxd_bit_ctr_reg[4:0]
+@28
+uart_cocowrapper.U_dut.parity_bad
+@29
+uart_cocowrapper.U_dut.parity_bad_mask
+[pattern_trace] 1
+[pattern_trace] 0

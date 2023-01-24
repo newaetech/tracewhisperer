@@ -45,6 +45,10 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
+// *** NEWAE modifications are indicated by "NEWAE NEW" comments; summary
+// of changes:
+// - support parity detection
+//
 //======================================================================
 
 module uart_core(
@@ -55,6 +59,9 @@ module uart_core(
                  input wire [15 : 0] bit_rate,
                  input wire [3 : 0]  data_bits,
                  input wire [1 : 0]  stop_bits,
+                 input wire          parity_bit, // NEWAE NEW: 1:odd; 0:even)
+                 input wire          parity_enabled, // NEWAE NEW: enable parity checking
+                 input wire          parity_accept_errors, // NEWAE NEW: if set, received words are emitted even when parity errors are detected
 
                  // External data interface
                  input wire          rxd,
@@ -83,6 +90,7 @@ module uart_core(
   parameter ERX_BITS  = 2;
   parameter ERX_STOP  = 3;
   parameter ERX_SYN   = 4;
+  parameter ERX_PARITY = 5; // NEWAE NEW
 
   parameter ETX_IDLE  = 0;
   parameter ETX_ACK   = 1;
@@ -149,6 +157,9 @@ module uart_core(
   reg [2 : 0]  etx_ctrl_new;
   reg          etx_ctrl_we;
 
+  // NEWAE NEW:
+  reg          parity_bad;
+  reg          parity_bad_mask;
 
   //----------------------------------------------------------------
   // Wires.
@@ -191,11 +202,18 @@ module uart_core(
           txd_bitrate_ctr_reg <= 16'h0000;
           txd_ack_reg         <= 0;
           etx_ctrl_reg        <= ETX_IDLE;
+          parity_bad_mask     <= 0;
         end
       else
         begin
           // We sample the rx input port every cycle.
           rxd_reg <= rxd;
+
+          // NEWAE NEW:
+          if (erx_ctrl_reg == ERX_START)
+              parity_bad_mask <= 1'b0;
+          else if (parity_bad && ~parity_accept_errors)
+              parity_bad_mask <= 1'b1;
 
           // We shift the rxd bit into msb.
           if (rxd_byte_we)
@@ -213,7 +231,7 @@ module uart_core(
               rxd_bitrate_ctr_reg <= rxd_bitrate_ctr_new;
             end
 
-          if (rxd_syn_we)
+          if (rxd_syn_we && ~parity_bad_mask)
             begin
               rxd_syn_reg <= rxd_syn_new;
             end
@@ -376,6 +394,7 @@ module uart_core(
       rxd_syn_we          = 0;
       erx_ctrl_new        = ERX_IDLE;
       erx_ctrl_we         = 0;
+      parity_bad          = 0;
 
       case (erx_ctrl_reg)
         ERX_IDLE:
@@ -426,9 +445,27 @@ module uart_core(
                 rxd_bitrate_ctr_rst = 1;
                 if (rxd_bit_ctr_reg == data_bits - 1)
                   begin
-                    erx_ctrl_new = ERX_STOP;
+                    // NEWAE NEW:
+                    if (parity_enabled)
+                        erx_ctrl_new = ERX_PARITY;
+                    else
+                        erx_ctrl_new = ERX_STOP;
                     erx_ctrl_we  = 1;
                   end
+              end
+          end
+
+        // NEWAE NEW:
+        ERX_PARITY:
+          begin
+            rxd_bitrate_ctr_inc = 1;
+            if (rxd_bitrate_ctr_reg == bit_rate)
+              begin
+                rxd_bitrate_ctr_rst = 1;
+                erx_ctrl_new = ERX_STOP;
+                erx_ctrl_we  = 1;
+                if (^{rxd_byte_reg, rxd_reg} != parity_bit)
+                    parity_bad = 1;
               end
           end
 
@@ -543,7 +580,7 @@ module uart_core(
               begin
                 txd_bitrate_ctr_rst = 1;
 
-                if (txd_bit_ctr_reg == data_bits)
+                if (txd_bit_ctr_reg == {1'b0, data_bits})
                   begin
                     txd_new      = 1;
                     txd_we       = 1;
