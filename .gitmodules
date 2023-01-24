@@ -2,3 +2,6 @@
 [submodule "phywhisperer-common"]
 	path = phywhisperer-common
 	url = git@github.com:newaetech/phywhisperer-common.git
+[submodule "fpga-common"]
+	path = fpga-common
+	url = git@github.com:newaetech/fpga-common.git
