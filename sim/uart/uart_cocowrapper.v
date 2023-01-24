@@ -36,7 +36,7 @@ module uart_cocowrapper(
     input  wire                         rxd,
     output wire                         txd,
     output wire                         rxd_syn,
-    output wire [7:0]                   rxd_data,
+    output wire [8:0]                   rxd_data,
     //input  wire                         rxd_ack,
 
     // testbench stuff:

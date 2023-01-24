@@ -48,6 +48,7 @@
 // *** NEWAE modifications are indicated by "NEWAE NEW" comments; summary
 // of changes:
 // - support parity detection
+// - support 9 data bits
 //
 //======================================================================
 
@@ -69,7 +70,7 @@ module uart_core(
 
                  // Internal receive interface.
                  output wire         rxd_syn,
-                 output [7 : 0]      rxd_data,
+                 output [8 : 0]      rxd_data,
                  input wire          rxd_ack,
 
                  // XXX NewAE added
@@ -106,8 +107,9 @@ module uart_core(
   //----------------------------------------------------------------
   reg          rxd_reg;
 
-  reg [7 : 0]  rxd_byte_reg;
+  reg [8 : 0]  rxd_byte_reg;
   reg          rxd_byte_we;
+  reg          rxd_byte_clear;
 
   reg [4 : 0]  rxd_bit_ctr_reg;
   reg [4 : 0]  rxd_bit_ctr_new;
@@ -190,7 +192,7 @@ module uart_core(
       if (!reset_n)
         begin
           rxd_reg             <= 0;
-          rxd_byte_reg        <= 8'h00;
+          rxd_byte_reg        <= 9'h00;
           rxd_bit_ctr_reg     <= 5'h0;
           rxd_bitrate_ctr_reg <= 16'h0000;
           rxd_syn_reg         <= 0;
@@ -216,9 +218,11 @@ module uart_core(
               parity_bad_mask <= 1'b1;
 
           // We shift the rxd bit into msb.
-          if (rxd_byte_we)
+          if (rxd_byte_clear)
+              rxd_byte_reg <= 9'b0;
+          else if (rxd_byte_we)
             begin
-              rxd_byte_reg <= {rxd_reg, rxd_byte_reg[7 : 1]};
+              rxd_byte_reg <= {rxd_reg, rxd_byte_reg[8 : 1]};
             end
 
           if (rxd_bit_ctr_we)
@@ -390,6 +394,7 @@ module uart_core(
       rxd_bitrate_ctr_rst = 0;
       rxd_bitrate_ctr_inc = 0;
       rxd_byte_we         = 0;
+      rxd_byte_clear      = 0;
       rxd_syn_new         = 0;
       rxd_syn_we          = 0;
       erx_ctrl_new        = ERX_IDLE;
@@ -412,6 +417,7 @@ module uart_core(
         ERX_START:
           begin
             rxd_bitrate_ctr_inc = 1;
+            rxd_byte_clear = 1;
             if (rxd_reg)
               begin
                 // Just a glitch.

@@ -23,7 +23,7 @@ fh.setFormatter(SimLogFormatter())
 root_logger.addHandler(fh)
 
 class Harness(object):
-    def __init__(self, dut, reps, baud, period, stop_bits, parity_bit, parity_enabled, parity_ignored):
+    def __init__(self, dut, reps, baud, period, data_bits, stop_bits, parity_bit, parity_enabled, parity_ignored):
         self.dut = dut
         self.reps = reps
         self.baud = baud
@@ -38,7 +38,7 @@ class Harness(object):
         self.bit_clocks = int( 1/(self.baud) / (self.period * 1e-9) )
         #  initialize all DUT input values:
         self.dut.bit_rate.value = self.bit_clocks
-        self.dut.data_bits.value = 8
+        self.dut.data_bits.value = data_bits
         self.dut.stop_bits.value = stop_bits
         self.dut.parity_bit.value = parity_bit
         if parity_ignored:
@@ -89,12 +89,13 @@ class Harness(object):
 
 
 class UartTest(object):
-    def __init__(self, dut, harness, reps, baud, stop_bits, parity_bit, parity_enabled):
+    def __init__(self, dut, harness, reps, baud, data_bits, stop_bits, parity_bit, parity_enabled):
         self.dut = dut
         self.harness = harness
         self.name = 'UART test'
         self.baud = baud
         self.reps = reps
+        self.data_bits = data_bits
         self.write_queue = Queue()
         if parity_enabled:
             if parity_bit:
@@ -105,7 +106,7 @@ class UartTest(object):
             parity = UARTParity.NONE
         self._uart_config = UARTConfig(baud=baud, 
                                        parity=parity,
-                                       bits=8,
+                                       bits=data_bits,
                                        stopbits=stop_bits)
         self._uartsig = UARTSignals(tx = dut.rxd,
                                     rx = dut.txd,
@@ -154,7 +155,7 @@ class UartTest(object):
         self.dut._log.debug('_run starting')
         await ClockCycles(self.dut.clk, 30)
         for i in range(self.reps):
-            word = random.randint(0,255)
+            word = random.randint(0,(2**self.data_bits)-1)
             self.dut._log.debug("rep %d: sending %4x" % (i, word))
             self.write_queue.put_nowait(word)
             await self._uart_drv.send(word)
@@ -166,7 +167,7 @@ class UartTest(object):
         i = 0
         while True:
             await self.wait_signal(self.dut.rxd_syn, 1, self.dut.clk)
-            rdata = self.dut.rxd_data.value
+            rdata = self.dut.rxd_data.value >> (9 - self.data_bits)
             edata = self.write_queue.get_nowait()
             if rdata != edata:
                 self.harness.inc_error()
@@ -189,19 +190,21 @@ async def uart_test(dut):
     baud  = int(os.getenv('BAUD', '115200'))
     period = int(os.getenv('PERIOD', '100'))
 
+    data_bits = int(os.getenv('DATA_BITS', '8'))
     stop_bits = int(os.getenv('STOP_BITS', '1'))
     parity_bit = int(os.getenv('PARITY_BIT', '0'))
     parity_enabled = int(os.getenv('PARITY_ENABLED', '0'))
     parity_ignored = int(os.getenv('PARITY_IGNORED', '0'))
 
+    dut._log.info("DATA_BITS: %d" % data_bits)
     dut._log.info("STOP_BITS: %d" % stop_bits)
     dut._log.info("PARITY_BIT: %d" % parity_bit)
     dut._log.info("PARITY_ENABLED: %d" % parity_enabled)
 
-    harness = Harness(dut, reps, baud, period, stop_bits, parity_bit, parity_enabled, parity_ignored)
+    harness = Harness(dut, reps, baud, period, data_bits, stop_bits, parity_bit, parity_enabled, parity_ignored)
     await harness.reset()
 
-    uarttest = UartTest(dut, harness, reps, baud, stop_bits, parity_bit, parity_enabled)
+    uarttest = UartTest(dut, harness, reps, baud, data_bits, stop_bits, parity_bit, parity_enabled)
 
     harness.register_test(uarttest)
     harness.start_tests()

@@ -41,8 +41,8 @@ class UARTConfig(object):
 
     def __setattr__(self, key, value):
         if key == "bits":
-            if int(value) not in range(5, 10):
-                raise TypeError("bits must be an integer in the range 5 to 9")
+            if int(value) not in range(4, 10):
+                raise TypeError("bits must be an integer in the range 4 to 9")
         elif key == "parity":
             if not isinstance(value, UARTParity):
                 raise TypeError("parity must be instance of UARTParity")

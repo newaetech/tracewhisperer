@@ -2,10 +2,10 @@
 [*] GTKWave Analyzer v3.3.86 (w)1999-2017 BSI
 [*] Tue Jan 24 01:58:44 2023
 [*]
-[dumpfile] "/home/jpnewae/git/tracewhisperer/sim_uart/uart.fst"
+[dumpfile] "/home/jpnewae/git/tracewhisperer/sim/uart/uart.fst"
 [dumpfile_mtime] "Tue Jan 24 01:48:37 2023"
 [dumpfile_size] 3647
-[savefile] "/home/jpnewae/git/tracewhisperer/sim_uart/uart.gtkw"
+[savefile] "/home/jpnewae/git/tracewhisperer/sim/uart/uart.gtkw"
 [timestart] 0
 [size] 3840 2132
 [pos] -1 -1
@@ -39,7 +39,7 @@ uart_cocowrapper.U_dut.rxd_data[7:0]
 @1401200
 -group_end
 @2024
-^1 /home/jpnewae/git/tracewhisperer/sim_uart/rxstate.filter
+^1 /home/jpnewae/git/tracewhisperer/sim/uart/rxstate.filter
 uart_cocowrapper.U_dut.rxd_state[2:0]
 @24
 uart_cocowrapper.U_dut.rxd_bit_ctr_reg[4:0]

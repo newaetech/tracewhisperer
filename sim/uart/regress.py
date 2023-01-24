@@ -25,7 +25,7 @@ args = parser.parse_args()
 
 # Define testcases:
 tests = []
-tests.append(dict(name  = 'fast',
+tests.append(dict(name  = 'fast8bits',
              testcase = 'uart_test',
              frequency = 1,
              PERIOD = 1000,
@@ -36,7 +36,7 @@ tests.append(dict(name  = 'fast',
              REPS = 200,
              description = ''))
 
-tests.append(dict(name  = 'slow',
+tests.append(dict(name  = 'slow8bits',
              testcase = 'uart_test',
              frequency = 1,
              PERIOD = 200,
@@ -47,7 +47,7 @@ tests.append(dict(name  = 'slow',
              REPS = 30,
              description = ''))
 
-tests.append(dict(name  = 'parity_ignored',
+tests.append(dict(name  = 'parity_ignored8bits',
              testcase = 'uart_test',
              frequency = 1,
              PERIOD = 1000,
@@ -56,6 +56,18 @@ tests.append(dict(name  = 'parity_ignored',
              PARITY_BIT = [0, 1],
              PARITY_ENABLED = 1,
              PARITY_IGNORED = 1,
+             REPS = 200,
+             description = ''))
+
+tests.append(dict(name  = 'variable_data_bits',
+             testcase = 'uart_test',
+             frequency = 1,
+             PERIOD = 1000,
+             BAUD = 40000,
+             DATA_BITS = [4, 9],
+             STOP_BITS = [1, 2],
+             PARITY_BIT = [0, 1],
+             PARITY_ENABLED = [0, 1],
              REPS = 200,
              description = ''))
 
