@@ -49,6 +49,7 @@
 // of changes:
 // - support parity detection
 // - support 9 data bits
+// - optionally don't report received data when there is a parity error
 //
 //======================================================================
 
@@ -491,7 +492,7 @@ module uart_core(
 
         ERX_SYN:
           begin
-            if (rxd_ack)
+            if (rxd_ack || parity_bad_mask) // NEWAE NEW
               begin
                 rxd_syn_new  = 0;
                 rxd_syn_we   = 1;
@@ -620,6 +621,22 @@ module uart_core(
           end
       endcase // case (etx_ctrl_reg)
     end // external_tx_engine
+
+   `ifdef ILA_UART_CORE
+       ila_uart_core U_uart_ila (
+	.clk            (clk),                          // input wire clk
+	.probe0         (rxd),                          // input wire [0:0]  probe0  
+	.probe1         (rxd_state),                    // input wire [2:0]  probe1 
+	.probe2         (rxd_syn),                      // input wire [0:0]  probe2 
+	.probe3         (rxd_data),                     // input wire [8:0]  probe3 
+	.probe4         (parity_bit),                   // input wire [0:0]  probe4 
+	.probe5         (parity_enabled),               // input wire [0:0]  probe5 
+	.probe6         (parity_accept_errors),         // input wire [0:0]  probe6 
+	.probe7         (parity_bad),                   // input wire [0:0]  probe7 
+	.probe8         (parity_bad_mask)               // input wire [0:0]  probe8 
+       );
+   `endif
+
 
 endmodule // uart
 

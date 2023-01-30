@@ -538,7 +538,7 @@ module fe_capture_trace #(
           .probe14      (I_triggering),         // input wire [0:0]  probe14
           .probe15      (I_swo_data),           // input wire [7:0]  probe15
           .probe16      (swo_data_ready_traceclk), // input wire [0:0]  probe16
-          .probe17      (swo_data_reg[7:0]),    // input wire [7:0]  probe17
+          .probe17      (swo_data_reg[7:0])     // input wire [7:0]  probe17
        );
    `endif
 
