@@ -40,7 +40,8 @@ module fe_capture_trace #(
 
     /* SWO */
     input  wire I_swo_data_ready,
-    input  wire [7:0] I_swo_data,
+    input  wire [8:0] I_swo_data,
+    input wire [3:0]  I_swo_data_bits,
     output wire O_swo_cdc_overflow,
     input  wire I_clear_errors,
 
@@ -129,7 +130,7 @@ module fe_capture_trace #(
    reg  capturing_r;
 
    (* ASYNC_REG = "TRUE" *) reg capture_raw;
-   wire [7:0] swo_data_reg;
+   wire [8:0] swo_data_reg;
    wire reset_sync;
 
    assign mask[0] = I_mask0;
@@ -188,7 +189,7 @@ module fe_capture_trace #(
    );
 
    cdc_bus #(
-      .pDATA_WIDTH   (8)
+      .pDATA_WIDTH   (9)
    ) U_swo_cdc (
       .reset_i       (reset),
       .clear_error   (I_clear_errors),
@@ -202,14 +203,15 @@ module fe_capture_trace #(
    );
    assign swo_data_ready_traceclk = swo_data_ready_traceclk_premask && (I_arm_fe || I_capturing || I_triggering);
 
-   wire [7:0] swo_buf_in = {swo_data_reg[0],
+   wire [8:0] swo_buf_in = {swo_data_reg[0],
                             swo_data_reg[1],
                             swo_data_reg[2],
                             swo_data_reg[3],
                             swo_data_reg[4],
                             swo_data_reg[5],
                             swo_data_reg[6],
-                            swo_data_reg[7]};
+                            swo_data_reg[7],
+                            swo_data_reg[8]};
 
    // shift trace data into buffer:
    always @(posedge fe_clk) begin
@@ -218,7 +220,14 @@ module fe_capture_trace #(
       else if (I_swo_enable) begin
          swo_data_ready_traceclk_r <= swo_data_ready_traceclk;
          if (swo_data_ready_traceclk) begin
-            buffer <= {buffer[pBUFFER_SIZE-9:0], swo_buf_in};
+            case (I_swo_data_bits)
+                4'd4: buffer <= {buffer[pBUFFER_SIZE- 5:0], swo_buf_in[3:0]};
+                4'd5: buffer <= {buffer[pBUFFER_SIZE- 6:0], swo_buf_in[4:0]};
+                4'd6: buffer <= {buffer[pBUFFER_SIZE- 7:0], swo_buf_in[5:0]};
+                4'd7: buffer <= {buffer[pBUFFER_SIZE- 8:0], swo_buf_in[6:0]};
+                4'd8: buffer <= {buffer[pBUFFER_SIZE- 9:0], swo_buf_in[7:0]};
+                4'd9: buffer <= {buffer[pBUFFER_SIZE-10:0], swo_buf_in[8:0]};
+            endcase
          end
       end
       else begin // parallel trace port
@@ -246,7 +255,7 @@ module fe_capture_trace #(
    always @(posedge fe_clk) begin
       if (reset) begin
          synchronized <= 1'b0;
-         valid_count <= 4'b0;
+         valid_count <= 3'b0;
          trace_width_r <= 3'b0;
       end
       else begin
@@ -258,7 +267,7 @@ module fe_capture_trace #(
             // changed (or forced manually):
             if (reset_sync || (I_trace_width != trace_width_r)) begin
                synchronized <= 1'b0;
-               valid_count <= 4'd0;
+               valid_count <= 3'd0;
             end
             // this catches both half and full sync frames:
             else if (~synchronized && 
@@ -266,7 +275,7 @@ module fe_capture_trace #(
                      (revbuffer[7:0] == 8'hff) // shorthand to ensure that buffer is full of sync frames
                     ) begin        // TODO: hmm, above seems dangerously incomplete...
                synchronized <= 1'b1;
-               valid_count <= 4'd1;
+               valid_count <= 3'd1;
             end
             else if (synchronized)
                valid_count <= valid_count + 1; // overflow ok and expected
@@ -502,7 +511,7 @@ module fe_capture_trace #(
           .probe9       (O_fifo_data),          // input wire [17:0] probe9 
           .probe10      (O_fifo_wr),            // input wire [0:0]  probe10 
           .probe11      (swo_data_ready_traceclk), // input wire [0:0]  probe11
-          .probe12      (swo_data_reg),         // input wire [7:0]  probe12
+          .probe12      (swo_data_reg[7:0]),    // input wire [7:0]  probe12
           .probe13      (capturing_r)           // input wire [0:0]  probe13
 
        );
@@ -529,7 +538,7 @@ module fe_capture_trace #(
           .probe14      (I_triggering),         // input wire [0:0]  probe14
           .probe15      (I_swo_data),           // input wire [7:0]  probe15
           .probe16      (swo_data_ready_traceclk), // input wire [0:0]  probe16
-          .probe17      (swo_data_reg)          // input wire [7:0]  probe17
+          .probe17      (swo_data_reg[7:0])     // input wire [7:0]  probe17
        );
    `endif
 

@@ -61,6 +61,7 @@
 `define REG_SWO_BITRATE_DIV     6'h21
 `define REG_UART_STOP_BITS      6'h22
 `define REG_UART_DATA_BITS      6'h23
+`define REG_UART_PARITY_SETTING 6'h24
 
 `define REG_FE_CLOCK_SEL        6'h25
 `define REG_STAT                6'h26

@@ -279,6 +279,7 @@ module tracewhisperer_top #(
       .trace_debug      (), // Husky only
       .capture_start    (), // Husky only
       .capture_done     (), // Husky only
+      .trace_data_sdr   (), // debug only
 
       .trace_data       (trace_data),
       .swo              (swo),
