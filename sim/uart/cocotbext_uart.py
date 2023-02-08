@@ -1,5 +1,7 @@
 # From: https://github.com/wallento/cocotbext-uart
-# (with minor modifications to address some compilation issues)
+# With minor modifications to:
+# - address compilation issue)
+# - allow sending parity errors
 
 import logging
 from collections import namedtuple
@@ -85,7 +87,7 @@ class UARTModule(Driver, Monitor):
         Driver.__init__(self)
         Monitor.__init__(self)
 
-    async def _driver_send(self, transaction, sync=True, **kwargs):
+    async def _driver_send(self, transaction, parity_error=False, sync=True, **kwargs):
         if self.config.flow_control == UARTFlowControl.HARDWARE and self.rtsn == 1:
             await FallingEdge(self.rtsn)
 
@@ -103,7 +105,14 @@ class UARTModule(Driver, Monitor):
 
         # Parity
         if self.config.parity != UARTParity.NONE:
-            self.tx.value = parity(transaction, self.config.bits, self.config.parity)
+            if parity_error:
+                if self.config.parity == UARTParity.ODD:
+                    parity_bit = UARTParity.EVEN
+                else:
+                    parity_bit = UARTParity.ODD
+            else:
+                parity_bit = self.config.parity
+            self.tx.value = parity(transaction, self.config.bits, parity_bit)
             await Timer(self.duration)
 
         # Stop bit(s)

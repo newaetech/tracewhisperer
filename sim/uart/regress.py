@@ -59,6 +59,47 @@ tests.append(dict(name  = 'parity_ignored8bits',
              REPS = 200,
              description = ''))
 
+tests.append(dict(name  = 'parity_errors_accepted',
+             testcase = 'uart_test',
+             frequency = 1,
+             PERIOD = 1000,
+             BAUD = 40000,
+             STOP_BITS = [1, 2],
+             PARITY_BIT = [0, 1],
+             PARITY_ENABLED = 1,
+             PARITY_ERRORS = 1,
+             PARITY_ACCEPT_ERRORS = 1,
+             REPS = 20,
+             description = ''))
+
+tests.append(dict(name  = 'parity_errors_not_accepted',
+             testcase = 'uart_test',
+             frequency = 1,
+             PERIOD = 1000,
+             BAUD = 40000,
+             STOP_BITS = [1, 2],
+             PARITY_BIT = [0, 1],
+             PARITY_ENABLED = 1,
+             PARITY_ERRORS = 1,
+             PARITY_ACCEPT_ERRORS = 0,
+             REPS = 20,
+             description = ''))
+
+tests.append(dict(name  = 'parity_errors',
+             testcase = 'uart_test',
+             frequency = 1,
+             PERIOD = 1000,
+             BAUD = 40000,
+             STOP_BITS = [1, 2],
+             PARITY_BIT = [0, 1],
+             PARITY_ENABLED = 1,
+             PARITY_ERRORS = 1,
+             PARITY_ACCEPT_ERRORS = [0, 1],
+             REPS = 200,
+             description = ''))
+
+
+
 tests.append(dict(name  = 'variable_data_bits',
              testcase = 'uart_test',
              frequency = 1,
