@@ -1,4 +1,4 @@
-# Trace Noise With PhyWhisperer
+# Trace Noise With PhyWhisperer and ChipWhisperer-Husky
 
 Trace port activity can add significant "noise" to power traces. The figure
 below shows this visually: two power traces were obtained where the K82F
@@ -94,10 +94,10 @@ Again, we quantify the effect of trace noise by running a CPA attack on an
 unprotected AES implementation; in this case, we see no significant
 different in the number of traces required for a successful attack.
 
-Finally, note that if the PhyWhisperer platform must be used, and the
-tracing noise is problematic, the noise can easily be "removed" by running
-the target operation twice: first with debug tracing enabled, then with
-debug tracing disabled to capture the power trace. (This assumes that the
+Finally, note that if the PhyWhisperer or ChipWhisperer-Husky platform must be
+used, and the tracing noise is problematic, the noise can easily be "removed"
+by running the target operation twice: first with debug tracing enabled, then
+with debug tracing disabled to capture the power trace. (This assumes that the
 *exact* same operation can be repeated twice and that the target behaves
 identically on repeated runs.)
 

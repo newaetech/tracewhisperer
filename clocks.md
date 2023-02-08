@@ -25,6 +25,7 @@ notebook](https://github.com/newaetech/DesignStartTrace/blob/master/jupyter/Trac
 shows a worked-out example of calculating the relationship between the
 collected trace debug timestamps and the power trace.
 
-This figure shows how clocks are managed internally in the PhyWhisperer:
+This figure shows how clocks are managed internally in PhyWhisperer and
+ChipWhisperer-Husky:
 ![picture](images/tracewhisperer_clocks.svg)
 
