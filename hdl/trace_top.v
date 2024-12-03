@@ -785,6 +785,7 @@ module trace_top #(
 
 
    `ifndef CW305
+      /*
       uart_core U_uart_rx (
          //.clk                      (trace_clk),
          .clk                      (trigger_clk),
@@ -809,6 +810,25 @@ module trace_top #(
          .txd_data                 (8'd0),
          .txd_ack                  ()
       );
+      */
+      uart_rx U_uart_rx (
+         //.clk                      (trace_clk),
+         .clk                      (trigger_clk),
+         .reset_n                  (~(reset || uart_reset)),
+         .bit_rate                 (swo_bitrate_div),
+         .data_bits                (uart_data_bits),
+         .stop_bits                (uart_stop_bits),
+         .parity_bit               (uart_parity_bit),
+         .parity_enabled           (uart_parity_enabled),
+         .parity_accept_errors     (uart_parity_accept_errors),
+         .rxd                      (swo),
+         .syn                      (swo_data_ready),
+         .data                     (swo_data_byte),
+         .ack                      (swo_ack),
+         .state                    (uart_rx_state)
+      );
+
+
       always @(posedge trigger_clk) swo_ack <= swo_data_ready;
    `endif
 
