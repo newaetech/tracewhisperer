@@ -44,6 +44,19 @@ that the target clock must be at least 20 MHz.
 
 To learn more, refer to the [DesignStartTrace README](../../README.md).
 
+## Supported ChipWhisperer Targets and Interfaces
+
+| **Target**                                                                    | SWO interface | parallel interface | notes  |
+| -------                                                                       | ------------- | ------------------ | ------ |
+| [CW308T-STM32F](https://rtfm.newae.com/Targets/UFO%20Targets/CW308T-STM32F/)  | ✅            | ❌                 |        |
+| [CW308T-K82F](https://rtfm.newae.com/Targets/UFO%20Targets/CW308T-K82/)       | ✅            | ✅                 |        |
+| [CW312T-SAM4S](https://rtfm.newae.com)                                        | ✅            | ❌                 | no ETM: can't trigger on PC addresses |
+| [CW305](https://rtfm.newae.com/Targets/CW305%20Artix%20FPGA/)                 | ❌            | ✅                 | [DesignStartTrace](https://github.com/newaetech/DesignStartTrace) target|
+
+Since Arm Trace is a standard, many other targets will work (including
+non-ChipWhisperer targets). The targets listed here are the ones we know to
+work out-of-the-box.
+
 ## Trace Port Connections
 
 If using parallel trace, five pins must be connected from the trace target
@@ -60,6 +73,8 @@ If using SWO, three pins must be connected:
 - SWCLK/TCLK to D1 pin
 - SWO/TDO to D2 pin
 
+Consult your target schematic to find these signals.
+
 On PhyWhisperer-USB, if the target-generated trigger is to be used to trigger
 trace collection, then the target trigger must be connected to the "PC" pin of
 the 20-pin connector on the side of PhyWhisperer-USB. This does not apply to
@@ -72,6 +87,21 @@ SWO mode, to allow for synchronous trace data capture (see
 [clocks.md](clocks.md) for more information on this).  The target clock may
 also be used for parallel trace, although it does not provide any advantages
 over the trace clock.
+
+
+## Why Is There a Separate [DesignStartTrace Repository](https://github.com/newaetech/DesignStartTrace)?
+See [here](https://github.com/newaetech/DesignStartTrace/tree/master#why-is-there-a-separate-tracewhisperer-repository).
+
+
+## Example Notebooks
+Switch over to the [DesignStartTrace
+repository](https://github.com/newaetech/DesignStartTrace/tree/master/jupyter)
+to find notebooks that teach what you can do with TraceWhisperer and how.
+
+The [ChipWhisperer sca205](https://github.com/newaetech/chipwhisperer-jupyter/tree/main/courses/sca205)
+series demonstrates using of TraceWhisperer to help build a side-channel attack
+against ECC.
+
 
 ## Implementation Details
 [This page](clocks.md) has details on internal clocking, which is needed to
