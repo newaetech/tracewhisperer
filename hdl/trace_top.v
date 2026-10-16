@@ -251,7 +251,7 @@ module trace_top #(
       .reset_i          (reset),
       .clk_usb          (usb_clk),
       .selected         (reg_trace_selected),
-      .reg_address      ({2'b0, reg_address[5:0]}), 
+      .reg_address      ({2'b0, reg_address[5:0]}), // NOTE: this looks wrong but it's fine thanks to reg_trace_selected!
       .reg_bytecnt      (reg_bytecnt), 
       .reg_datao        (read_data_traceclk_drp), 
       .reg_datai        (write_data), 
